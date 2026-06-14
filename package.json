@@ -1,0 +1,25 @@
+{
+  "name": "face-web",
+  "version": "0.0.1",
+  "private": true,
+  "license": "UNLICENSED",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,magenta \"npm run start:dev -w @face-web/api\" \"npm run dev -w @face-web/web\"",
+    "dev:api": "npm run start:dev -w @face-web/api",
+    "dev:web": "npm run dev -w @face-web/web",
+    "build": "npm run build -w @face-web/api && npm run build -w @face-web/web",
+    "build:api": "npm run build -w @face-web/api",
+    "build:web": "npm run build -w @face-web/web",
+    "lint": "npm run lint -w @face-web/api && npm run lint -w @face-web/web",
+    "test": "npm run test -w @face-web/api",
+    "test:e2e": "npm run test:e2e -w @face-web/api",
+    "format": "npm run format -w @face-web/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
