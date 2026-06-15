@@ -1,7 +1,7 @@
-import { Role } from "./role.enum";
+import { AccountRole } from './account-role.enum';
 
 export interface CurrentUser {
     id: string;
-    username: string;
-    roles: Role[];
+    employeeCode: string;
+    roles: AccountRole[];
 }

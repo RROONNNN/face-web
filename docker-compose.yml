@@ -1,0 +1,17 @@
+# docker-compose.yml
+services:
+  postgres:
+    image: postgres:16
+    container_name: face_web_postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: face_web
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - face_web_pg_data:/var/lib/postgresql/data
+
+volumes:
+  face_web_pg_data:

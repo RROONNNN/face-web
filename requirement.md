@@ -1,34 +1,34 @@
-# Requirement — Hệ thống chấm công nhận diện khuôn mặt
+# Requirements - Face Recognition Attendance System
 
-## Tổng quan
+## Overview
 
-Hệ thống gồm 3 thành phần:
+The system has 3 components:
 
-- **Mobile App** — offline-first, nhận diện khuôn mặt, lưu check-in/out kèm vị trí, đồng bộ định kỳ lên backend.
-- **Backend** — xác thực, quản lý nhân sự, lịch sử chấm công, đồng bộ face embedding.
-- **Web Portal (Admin)** — giao diện quản trị **chỉ dành cho Admin**. Employee không có quyền truy cập web.
+- **Mobile App** - offline-first, face recognition, stores check-in/check-out events with location, and syncs periodically to the backend.
+- **Backend** - authentication, employee management, attendance history, and face embedding sync.
+- **Web Portal (Admin)** - admin-only management interface. Employees do not have access to the web portal.
 
 ---
 
 ## Roles & Auth
 
-| Role | Mô tả |
-|------|--------|
-| `admin` | Toàn quyền: quản lý nhân viên, ca, chấm công thủ công, duyệt nghỉ phép, xem mọi báo cáo |
-| `employee` | Chỉ dùng mobile app (check-in/out, xin nghỉ phép) |
+| Role | Description |
+|------|-------------|
+| `admin` | Full access: manage employees, shifts, manual attendance, leave approval, and all reports |
+| `employee` | Mobile app only: check-in/check-out and leave requests |
 
-- Admin được tạo sẵn trong DB (seed).
-- Đăng nhập: `employeeCode` + `password` (default password = `employeeCode`).
-- Khi tạo mới nhân viên, tài khoản và mật khẩu mặc định = `employeeCode`.
-- Auth dùng JWT (access token ngắn hạn + refresh token).
+- Admin is pre-created in the database via seed data.
+- Login uses `employeeCode` + `password` (default password = `employeeCode`).
+- When a new employee is created, the account and default password are both set to `employeeCode`.
+- Authentication uses JWT (short-lived access token + refresh token).
 
 ---
 
 ## Data Models
 
-### User (nhân viên)
+### User (employee)
 ```
-employeeCode  String  unique, auto-gen (EMP00001, EMP00002, ...)
+employeeCode  String  unique, auto-generated (EMP00001, EMP00002, ...)
 name          String  required
 passwordHash  String  required
 accountRole   Enum    admin | employee
@@ -39,175 +39,205 @@ email         String
 dateOfBirth   Date
 ```
 
-### Shift (ca làm việc)
+### Shift
 ```
-name          String   VD: "Ca hành chính"
-startTime     String   HH:mm  VD: "08:00"
-endTime       String   HH:mm  VD: "17:00"
-isActive      Boolean  true = ca đang áp dụng toàn công ty
+name          String   Example: "Office hours"
+startTime     String   HH:mm  Example: "08:00"
+endTime       String   HH:mm  Example: "17:00"
+isActive      Boolean  true = currently applied company-wide
 ```
-> Toàn công ty dùng chung 1 ca active tại một thời điểm.  
-> `isActive=true` → dùng để tính late/early.
+> The whole company uses one active shift at a time.  
+> `isActive=true` is used to calculate late arrivals and early leave.
 
-### Attendance (bản ghi chấm công ngày)
+### CheckIn
 ```
-employeeId    ObjectId → User
-shiftId       ObjectId → Shift
+employeeId    ObjectId -> User
+shiftId       ObjectId -> Shift
 workDate      Date     (normalized to start of day UTC)
-checkIn       { time, latitude, longitude, method, localId, isOutOfZone }
-checkOut      { time, latitude, longitude, method, localId, isOutOfZone }
-status        Enum: present | absent | partial | unknown
-processedLocalIds  [String]
+time          Date
+latitude      Number
+longitude     Number
+method        Enum: mobile | sync | manual
+imagePath     String
+isOutOfZone   Boolean  default false
+createdBy     ObjectId -> User (admin, only for manual entries)
+createdAt     Date
+updatedAt     Date
 ```
 
-### FaceData (embedding khuôn mặt)
+### CheckOut
 ```
-employeeId        ObjectId → User  unique
+employeeId    ObjectId -> User
+shiftId       ObjectId -> Shift
+workDate      Date     (normalized to start of day UTC)
+time          Date
+latitude      Number
+longitude     Number
+method        Enum: mobile | sync | manual
+imagePath     String
+isOutOfZone   Boolean  default false
+createdBy     ObjectId -> User (admin, only for manual entries)
+createdAt     Date
+updatedAt     Date
+```
+
+> There is no separate `Attendance` schema. Daily attendance tables, monthly reports, status values (`present | absent | partial | unknown`), late/early calculations, and total work hours are aggregated from `CheckIn` + `CheckOut` by `employeeId + workDate`.
+
+### FaceData
+```
+employeeId        ObjectId -> User  unique
 listFaceEmbedding [[Number]]
-imageUrl          String   (URL ảnh thực tế — thêm mới)
+imageUrl          String   (actual image URL)
 updatedTime       Date
 ```
 
-### LeaveRequest (đơn nghỉ phép)
+### LeaveRequest
 ```
-employeeId   ObjectId → User
+employeeId   ObjectId -> User
 startDate    Date
 endDate      Date
 reason       String
 status       Enum: pending | approved | rejected
-reviewedBy   ObjectId → User (admin)
+reviewedBy   ObjectId -> User (admin)
 reviewedAt   Date
 ```
 
-### GeoConfig (cấu hình geofencing)
+### GeoConfig
 ```
 centerLat    Number
 centerLon    Number
 radiusMeters Number
 ```
-> Chỉ 1 document duy nhất (toàn công ty dùng chung).
+> Only one document exists. The same geofence configuration is used company-wide.
 
 ---
 
 ## API Specification
 
 ### Auth
-| Method | Path | Body | Auth | Mô tả |
-|--------|------|------|------|--------|
-| POST | `/auth/login` | `{employeeCode, password}` | — | Đăng nhập, trả về JWT |
-| POST | `/auth/refresh` | `{refreshToken}` | — | Làm mới access token |
-| POST | `/auth/logout` | — | JWT | Logout |
+| Method | Path | Body | Auth | Description |
+|--------|------|------|------|-------------|
+| POST | `/auth/login` | `{employeeCode, password}` | - | Log in and return JWT |
+| POST | `/auth/refresh` | `{refreshToken}` | - | Refresh access token |
+| POST | `/auth/logout` | - | JWT | Log out |
 
 ### Employee
-| Method | Path | Body/Query | Auth | Mô tả |
-|--------|------|------------|------|--------|
-| POST | `/employees` | `{name, department, jobTitle, phone, email, dateOfBirth}` | admin | Tạo nhân viên, tự tạo account |
-| GET | `/employees` | `?department=&search=` | admin | Danh sách nhân viên |
-| GET | `/employees/:id` | — | admin | Chi tiết nhân viên |
-| PUT | `/employees/:id` | fields to update | admin | Cập nhật hồ sơ |
+| Method | Path | Body/Query | Auth | Description |
+|--------|------|------------|------|-------------|
+| POST | `/employees` | `{name, department, jobTitle, phone, email, dateOfBirth}` | admin | Create employee and auto-create account |
+| GET | `/employees` | `?department=&search=` | admin | List employees |
+| GET | `/employees/:id` | - | admin | Employee detail |
+| PUT | `/employees/:id` | fields to update | admin | Update employee profile |
 
 ### Shift
-| Method | Path | Body | Auth | Mô tả |
-|--------|------|------|------|--------|
-| POST | `/shifts` | `{name, startTime, endTime}` | admin | Tạo ca |
-| GET | `/shifts` | — | admin | Danh sách ca |
-| PUT | `/shifts/:id` | fields | admin | Cập nhật ca |
-| PUT | `/shifts/:id/activate` | — | admin | Set ca này là active |
-| DELETE | `/shifts/:id` | — | admin | Xóa ca |
+| Method | Path | Body | Auth | Description |
+|--------|------|------|------|-------------|
+| POST | `/shifts` | `{name, startTime, endTime}` | admin | Create shift |
+| GET | `/shifts` | - | admin | List shifts |
+| PUT | `/shifts/:id` | fields | admin | Update shift |
+| PUT | `/shifts/:id/activate` | - | admin | Set this shift as active |
+| DELETE | `/shifts/:id` | - | admin | Delete shift |
 
-### Attendance — Direct (từ mobile)
-| Method | Path | Body | Auth | Mô tả |
-|--------|------|------|------|--------|
-| POST | `/attendance/checkIn` | `CheckInOut` | JWT | Check-in trực tiếp |
-| POST | `/attendance/checkOut` | `CheckInOut` | JWT | Check-out trực tiếp |
+### Attendance - Direct (from mobile)
+| Method | Path | Body | Auth | Description |
+|--------|------|------|------|-------------|
+| POST | `/attendance/checkIn` | `CheckInRequest` | JWT | Create one `CheckIn` record |
+| POST | `/attendance/checkOut` | `CheckOutRequest` | JWT | Create one `CheckOut` record |
 
 ```ts
-// CheckInOut object
-{ empId: string, time: ISO8601, lat: number, lon: number }
+// CheckInRequest / CheckOutRequest object
+{ empId: string, time: ISO8601, lat: number, lon: number, imagePath?: string }
 ```
 
-### Attendance — Sync (từ mobile offline)
+### Attendance - Sync (from offline mobile data)
 | Method | Path | Body | Auth | Output |
 |--------|------|------|------|--------|
-| POST | `/attendance/sync/checkIn` | `[SyncCheckInOut]` | JWT | `[localId]` — danh sách failed |
-| POST | `/attendance/sync/checkOut` | `[SyncCheckInOut]` | JWT | `[localId]` — danh sách failed |
+| POST | `/attendance/sync/checkIn` | `[SyncCheckInRequest]` | JWT | `[localId]` - failed item IDs |
+| POST | `/attendance/sync/checkOut` | `[SyncCheckOutRequest]` | JWT | `[localId]` - failed item IDs |
 
 ```ts
-// SyncCheckInOut object
-{ empId: string, time: ISO8601, lat: number, lon: number, localId: string }
+// SyncCheckInRequest / SyncCheckOutRequest object
+{ empId: string, time: ISO8601, lat: number, lon: number, localId: string, imagePath?: string }
 ```
 
-### Attendance — Manual & Query (web admin)
-| Method | Path | Body/Query | Auth | Mô tả |
-|--------|------|------------|------|--------|
-| POST | `/attendance/manual` | `{empId, checkInTime, checkOutTime, workDate}` | admin | Chấm công thủ công |
-| PUT | `/attendance/:id` | fields | admin | Sửa bản ghi |
-| DELETE | `/attendance/:id` | — | admin | Xóa bản ghi |
-| GET | `/attendance` | `?date=&empId=&late=&early=&page=` | admin | Bảng chấm công có filter |
+> `localId` is only used by the client to correlate errors within the current sync request. The backend does not store `localId` in `CheckIn` / `CheckOut`, and `localId` does not need to be globally unique.
 
-**Late/Early logic:** so sánh với `Shift.startTime` / `Shift.endTime` của ca active.
+### Attendance - Manual & Query (web admin)
+| Method | Path | Body/Query | Auth | Description |
+|--------|------|------------|------|-------------|
+| POST | `/attendance/manual/checkIn` | `{empId, time, lat?, lon?, workDate}` | admin | Create a manual `CheckIn` record |
+| POST | `/attendance/manual/checkOut` | `{empId, time, lat?, lon?, workDate}` | admin | Create a manual `CheckOut` record |
+| PUT | `/attendance/checkIn/:id` | fields | admin | Update a `CheckIn` record |
+| PUT | `/attendance/checkOut/:id` | fields | admin | Update a `CheckOut` record |
+| DELETE | `/attendance/checkIn/:id` | - | admin | Delete a `CheckIn` record |
+| DELETE | `/attendance/checkOut/:id` | - | admin | Delete a `CheckOut` record |
+| GET | `/attendance` | `?date=&empId=&late=&early=&status=&page=` | admin | Attendance table aggregated from `CheckIn` + `CheckOut` |
+
+**Late/Early logic:** compare with `Shift.startTime` / `Shift.endTime` from the active shift.
 
 ### Geofencing
-| Method | Path | Body | Auth | Mô tả |
-|--------|------|------|------|--------|
-| GET | `/config/geofence` | — | admin | Lấy cấu hình vùng |
-| PUT | `/config/geofence` | `{centerLat, centerLon, radiusMeters}` | admin | Cập nhật vùng hợp lệ |
+| Method | Path | Body | Auth | Description |
+|--------|------|------|------|-------------|
+| GET | `/config/geofence` | - | admin | Get geofence configuration |
+| PUT | `/config/geofence` | `{centerLat, centerLon, radiusMeters}` | admin | Update valid area |
 
-> Khi checkIn/checkOut: tự động validate vị trí, đánh dấu `isOutOfZone=true` nếu ngoài vùng.
+> On check-in/check-out, validate location automatically and set `isOutOfZone=true` if the location is outside the configured area.
 
 ### Face Data
-| Method | Path | Body | Auth | Mô tả |
-|--------|------|------|------|--------|
-| PUT | `/face/employee/:empId` | `{listFaceEmbedding, imageUrl}` | JWT | Cập nhật embedding + ảnh |
-| POST | `/face/sync` | `[FaceData]` | JWT | Sync face data (xem logic bên dưới) |
-| GET | `/face` | — | admin | Danh sách face data kèm imageUrl |
-| DELETE | `/face/:empId` | — | admin | Xóa face data của nhân viên |
+| Method | Path | Body | Auth | Description |
+|--------|------|------|------|-------------|
+| PUT | `/face/employee/:empId` | `{listFaceEmbedding, imageUrl}` | JWT | Update embedding + image |
+| POST | `/face/sync` | `[FaceData]` | JWT | Sync face data (see logic below) |
+| GET | `/face` | - | admin | List face data with `imageUrl` |
+| DELETE | `/face/:empId` | - | admin | Delete an employee's face data |
 
 **SyncFaceData logic:**
-1. Với mỗi item trong input: nếu `updatedTime` mới hơn DB → cập nhật.
-2. Nếu role là admin → trả về danh sách face data "mới" theo 2 điều kiện:
-   - `employeeId` **không có** trong list gửi lên → trả về.
-   - `employeeId` **có** trong list gửi lên nhưng `updatedTime` trong DB **mới hơn** → trả về.
+1. For each input item: if `updatedTime` is newer than the database value, update it.
+2. If the role is admin, return "new" face data by these conditions:
+   - `employeeId` is not included in the submitted list -> return it.
+   - `employeeId` is included in the submitted list, but the database `updatedTime` is newer -> return it.
 
 ### Leave Request
-| Method | Path | Body/Query | Auth | Mô tả |
-|--------|------|------------|------|--------|
-| POST | `/leave` | `{startDate, endDate, reason}` | JWT | Tạo đơn xin nghỉ (từ mobile) |
-| GET | `/leave` | `?status=&empId=` | admin | Danh sách đơn nghỉ |
-| PUT | `/leave/:id/approve` | — | admin | Duyệt đơn |
-| PUT | `/leave/:id/reject` | `{reason}` | admin | Từ chối đơn |
+| Method | Path | Body/Query | Auth | Description |
+|--------|------|------------|------|-------------|
+| POST | `/leave` | `{startDate, endDate, reason}` | JWT | Create leave request from mobile |
+| GET | `/leave` | `?status=&empId=` | admin | List leave requests |
+| PUT | `/leave/:id/approve` | - | admin | Approve leave request |
+| PUT | `/leave/:id/reject` | `{reason}` | admin | Reject leave request |
 
-> Thông báo: chỉ cập nhật `status` trong DB, không gửi push notification.
+> Notifications: only update `status` in the database. No push notification is sent.
 
 ### Reports
 | Method | Path | Query | Auth | Output |
 |--------|------|-------|------|--------|
-| GET | `/reports/monthly` | `?month=2026-05&empId=` | admin | Báo cáo tháng (tất cả hoặc cá nhân) |
-| GET | `/reports/employee/:id` | `?month=2026-05` | admin | Báo cáo cá nhân |
+| GET | `/reports/monthly` | `?month=2026-05&empId=` | admin | Monthly report for all employees or one employee |
+| GET | `/reports/employee/:id` | `?month=2026-05` | admin | Individual employee report |
 
-**Metrics trả về:**
-- `totalWorkDays` — tổng ngày đi làm
-- `totalWorkHours` — tổng giờ làm
-- `leaveDays` — số ngày nghỉ phép được duyệt
-- `lateCount` — số lần check-in muộn
-- `earlyLeaveCount` — số lần check-out sớm
-- `outOfZoneCount` — số lần check-in ngoài vùng geofence
+**Returned metrics:**
+- `totalWorkDays` - total working days
+- `totalWorkHours` - total working hours
+- `leaveDays` - number of approved leave days
+- `lateCount` - number of late check-ins
+- `earlyLeaveCount` - number of early check-outs
+- `outOfZoneCount` - number of out-of-zone check-ins
 
 ### Realtime Dashboard
-| Method | Path | Auth | Mô tả |
-|--------|------|------|--------|
-| GET | `/dashboard/present` | admin | HTTP: danh sách nhân viên đang có mặt hôm nay |
-| WS | Socket.io `/` | admin | Event `attendance:update` khi có check-in/out mới |
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/dashboard/present` | admin | HTTP: list employees currently present today |
+| WS | Socket.io `/` | admin | Emit `attendance:update` event on new check-in/check-out |
 
-**"Đang có mặt"** = đã check-in hôm nay, chưa check-out.
+**"Currently present"** = checked in today and has not checked out yet.
 
 ---
 
 ## Business Rules
 
-1. **Geofencing**: Mọi check-in/out đều validate vị trí. Không chặn, chỉ đánh dấu `isOutOfZone`.
-2. **Idempotency**: Mỗi `localId` chỉ được xử lý 1 lần (dùng `ProcessedEvent`).
-3. **Shift**: Chỉ 1 ca `isActive=true` tại một thời điểm. Khi activate ca mới → tự động deactivate ca cũ.
-4. **Password**: Bcrypt hash, default = `employeeCode`.
-5. **employeeCode**: Auto-generate format `EMP00001`, tăng dần.
-
+1. **Geofencing**: Validate every check-in/check-out location. Do not block the event; only mark `isOutOfZone`.
+2. **Sync localId**: `localId` is not stored. When sync fails, the backend returns the failed item's `localId` so the client can correlate it within that request.
+3. **Shift**: Only one shift can have `isActive=true` at a time. Activating a new shift automatically deactivates the previous active shift.
+4. **Password**: Use bcrypt hash. Default password = `employeeCode`.
+5. **employeeCode**: Auto-generate with format `EMP00001`, incrementing sequentially.
+6. **Attendance aggregation**: A daily attendance row is generated at query time by joining `CheckIn` and `CheckOut` by `employeeId + workDate`. If there are multiple records in a day, use the earliest `CheckIn` and the latest `CheckOut` for the attendance table; keep the remaining records for audit. If one side is missing, status is `partial`; if both are missing and there is no approved leave request, status is `absent`.
+7. **Manual attendance**: Admin-entered manual attendance does not require `lat` / `lon`. If location is missing, skip geofence validation and store `method=manual`.
+8. **Shift snapshot**: Each `CheckIn` / `CheckOut` stores the active `shiftId` at creation time so historical reports do not change after an admin changes the active shift.

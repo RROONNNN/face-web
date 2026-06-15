@@ -1,18 +1,14 @@
 import { ExecutionContext, Injectable } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { Roles } from "./roles.decorator";
-import { Role } from "./role.enum";
+import { AccountRoles } from "./roles.decorator";
 import { AuthenticatedRequest } from "./authenticated-req.type";
+import { AccountRole } from "./account-role.enum";
 
 @Injectable()
 export class RolesGuard {
     constructor(private readonly reflector: Reflector) { }
     canActivate(context: ExecutionContext): boolean {
-        const classes = context.getClass();
-        console.log('classes', classes);
-        console.log('context', context);
-        console.log('reflector', this.reflector);
-        const requiredRoles = this.reflector.get<Role[]>(Roles, context.getHandler());
+        const requiredRoles = this.reflector.get<AccountRole[]>(AccountRoles, context.getHandler());
 
         if (!requiredRoles || requiredRoles.length === 0) {
             return true;
