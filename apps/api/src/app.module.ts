@@ -14,7 +14,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ShiftsModule } from './modules/shifts/shifts.module';
-import { AttendanceModule } from './attendance/attendance.module';
+import { AttendanceModule } from './modules/attendance/attendance.module';
 import { GeofenceModule } from './modules/geofence/geofence.module';
 import { FaceModule } from './modules/face/face.module';
 import { LeaveModule } from './modules/leave/leave.module';

@@ -17,7 +17,8 @@
     "lint": "npm run lint -w @face-web/api && npm run lint -w @face-web/web",
     "test": "npm run test -w @face-web/api",
     "test:e2e": "npm run test:e2e -w @face-web/api",
-    "format": "npm run format -w @face-web/api"
+    "format": "npm run format -w @face-web/api",
+    "seed:demo": "npm run seed:demo -w @face-web/api"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

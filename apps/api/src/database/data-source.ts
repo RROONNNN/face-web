@@ -2,7 +2,11 @@ import { config } from 'dotenv';
 import { resolve } from 'path';
 import { DataSource } from 'typeorm';
 
+import { CheckIn } from '../modules/attendance/entities/check-in.entity';
+import { CheckOut } from '../modules/attendance/entities/check-out.entity';
 import { RefreshToken } from '../modules/auth/entities/refresh-token.entity';
+import { FaceData } from '../modules/face/entities/face-data.entity';
+import { LeaveRequest } from '../modules/leave/entities/leave-request.entity';
 import { Shift } from '../modules/shifts/entities/shift.entity';
 import { User } from '../modules/users/entities/user.entity';
 
@@ -16,7 +20,15 @@ export default new DataSource({
   password: process.env.DATABASE_PASSWORD,
   database: process.env.DATABASE_NAME,
 
-  entities: [User, RefreshToken, Shift],
+  entities: [
+    User,
+    RefreshToken,
+    Shift,
+    CheckIn,
+    CheckOut,
+    FaceData,
+    LeaveRequest,
+  ],
   migrations: ['src/database/migrations/*.ts'],
 
   synchronize: false,
