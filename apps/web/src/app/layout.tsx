@@ -3,8 +3,8 @@ import type { ReactNode } from 'react';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Face Web',
-  description: 'Face Web frontend',
+  title: 'Face Web Admin',
+  description: 'Admin portal for face recognition attendance',
 };
 
 export default function RootLayout({
