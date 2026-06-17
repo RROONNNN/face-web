@@ -8,6 +8,7 @@ import {
   ParseUUIDPipe,
   Post,
   Put,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -19,6 +20,7 @@ import type { AuthenticatedRequest } from '../auth/authenticated-req.type';
 import { FaceService } from './face.service';
 import { UpdateFaceDataDto } from './dto/update-face-data.dto';
 import { SyncFaceDataDto } from './dto/sync-face-data.dto';
+import { QueryFaceDataDto } from './dto/query-face-data.dto';
 
 @Controller('face')
 @UseGuards(AuthGuard)
@@ -46,8 +48,8 @@ export class FaceController {
   @Get()
   @UseGuards(RolesGuard)
   @AccountRoles([AccountRole.Admin])
-  findAll() {
-    return this.faceService.findAll();
+  findAll(@Query() input: QueryFaceDataDto) {
+    return this.faceService.findAll(input);
   }
 
   @Delete(':empId')

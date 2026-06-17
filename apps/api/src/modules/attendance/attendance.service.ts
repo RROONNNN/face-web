@@ -19,6 +19,8 @@ import { SyncAttendanceEventDto } from './dto/sync-attendance-event.dto';
 import { CreateManualAttendanceEventDto } from './dto/create-manual-attendance-event.dto';
 import { UpdateAttendanceEventDto } from './dto/update-attendance-event.dto';
 import { QueryAttendanceDto } from './dto/query-attendance.dto';
+import { GeofenceService } from '../geofence/geofence.service';
+import { AttendanceRealtimeGateway } from './attendance-realtime.gateway';
 
 const SYNC_DUPLICATE_WINDOW_MS = 5_000;
 
@@ -36,7 +38,9 @@ export class AttendanceService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Shift)
     private readonly shiftRepository: Repository<Shift>,
-  ) { }
+    private readonly geofenceService: GeofenceService,
+    private readonly attendanceRealtimeGateway: AttendanceRealtimeGateway,
+  ) {}
 
   createCheckIn(input: CreateAttendanceEventDto, currentUser?: CurrentUser) {
     return this.createMobileEvent(this.checkInRepository, input, currentUser);
@@ -158,6 +162,37 @@ export class AttendanceService {
     return this.paginate(filtered, input);
   }
 
+  async findPresentToday() {
+    const workDate = this.normalizeWorkDateFromTime(new Date());
+    const [checkIns, checkOuts] = await Promise.all([
+      this.checkInRepository.find({
+        where: { workDate },
+        relations: { employee: true, shift: true },
+        order: { time: 'DESC' },
+      }),
+      this.checkOutRepository.find({
+        where: { workDate },
+        order: { time: 'DESC' },
+      }),
+    ]);
+
+    const latestCheckInByEmployee = this.pickByEmployee(checkIns, 'latest');
+    const latestCheckOutByEmployee = this.pickByEmployee(checkOuts, 'latest');
+
+    return Array.from(latestCheckInByEmployee.values())
+      .filter((checkIn) => {
+        const checkOut = latestCheckOutByEmployee.get(checkIn.employeeId);
+        return !checkOut || checkOut.time.getTime() < checkIn.time.getTime();
+      })
+      .map((checkIn) => ({
+        employee: this.toEmployeeSummary(checkIn.employee),
+        checkIn: this.toEventSummary(checkIn),
+        workDate,
+        late: this.isLaterThanShiftStart(checkIn),
+        outOfZone: checkIn.isOutOfZone,
+      }));
+  }
+
   private async createMobileEvent<T extends AttendanceEvent>(
     repository: AttendanceRepository<T>,
     input: CreateAttendanceEventDto,
@@ -166,7 +201,7 @@ export class AttendanceService {
     this.assertCanCreateMobileEvent(input.empId, currentUser);
 
     const time = this.parseDateTime(input.time);
-    return this.createEvent(repository, {
+    return this.createEvent(repository, this.getEventType(repository), {
       employeeId: input.empId,
       time,
       workDate: this.normalizeWorkDateFromTime(time),
@@ -197,7 +232,7 @@ export class AttendanceService {
         );
 
         if (!duplicate) {
-          await this.createEvent(repository, {
+          await this.createEvent(repository, this.getEventType(repository), {
             employeeId: item.empId,
             time,
             workDate: this.normalizeWorkDateFromTime(time),
@@ -225,7 +260,7 @@ export class AttendanceService {
     const latitude = input.lat ?? null;
     const longitude = input.lon ?? null;
 
-    return this.createEvent(repository, {
+    return this.createEvent(repository, this.getEventType(repository), {
       employeeId: input.empId,
       time,
       workDate: this.normalizeDateOnly(input.workDate),
@@ -239,6 +274,7 @@ export class AttendanceService {
 
   private async createEvent<T extends AttendanceEvent>(
     repository: AttendanceRepository<T>,
+    eventType: 'checkIn' | 'checkOut',
     input: {
       employeeId: string;
       time: Date;
@@ -252,7 +288,7 @@ export class AttendanceService {
   ) {
     await this.ensureEmployee(input.employeeId);
     const activeShift = await this.getActiveShift();
-    const isOutOfZone = this.calculateIsOutOfZone(
+    const isOutOfZone = await this.calculateIsOutOfZone(
       input.latitude,
       input.longitude,
     );
@@ -270,7 +306,15 @@ export class AttendanceService {
       createdById: input.createdById,
     } as DeepPartial<T>);
 
-    return repository.save(entity);
+    const saved = await repository.save(entity);
+    this.attendanceRealtimeGateway.publishAttendanceUpdate({
+      eventType,
+      employeeId: saved.employeeId,
+      workDate: saved.workDate,
+      event: this.toEventSummary(saved),
+    });
+
+    return saved;
   }
 
   private async updateEvent<T extends AttendanceEvent>(
@@ -406,11 +450,7 @@ export class AttendanceService {
     latitude: number | null,
     longitude: number | null,
   ) {
-    if (latitude === null || longitude === null) {
-      return false;
-    }
-
-    return false;
+    return this.geofenceService.isOutOfZone(latitude, longitude);
   }
 
   private pickByEmployee<T extends AttendanceEvent>(
@@ -526,5 +566,11 @@ export class AttendanceService {
       imagePath: event.imagePath,
       isOutOfZone: event.isOutOfZone,
     };
+  }
+
+  private getEventType<T extends AttendanceEvent>(
+    repository: AttendanceRepository<T>,
+  ): 'checkIn' | 'checkOut' {
+    return repository.metadata.target === CheckIn ? 'checkIn' : 'checkOut';
   }
 }

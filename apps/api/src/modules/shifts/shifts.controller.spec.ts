@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { JwtService } from '@nestjs/jwt';
 import { ShiftsController } from './shifts.controller';
 import { ShiftsService } from './shifts.service';
 
@@ -11,6 +12,10 @@ describe('ShiftsController', () => {
       providers: [
         {
           provide: ShiftsService,
+          useValue: {},
+        },
+        {
+          provide: JwtService,
           useValue: {},
         },
       ],

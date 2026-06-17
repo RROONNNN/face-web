@@ -11,9 +11,9 @@ import { RefreshToken } from './entities/refresh-token.entity';
     imports: [
         UsersModule,
         JwtModule.registerAsync({
+            global: true,
             inject: [ConfigService],
             useFactory: (configService: ConfigService) => ({
-                global: true,
                 secret: configService.getOrThrow<string>('jwt.accessSecret'),
                 signOptions: { expiresIn: '24h' },
             }),

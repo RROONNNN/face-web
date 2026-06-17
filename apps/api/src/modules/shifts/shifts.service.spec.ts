@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { Shift } from './entities/shift.entity';
 import { ShiftsService } from './shifts.service';
 
@@ -12,6 +13,10 @@ describe('ShiftsService', () => {
         ShiftsService,
         {
           provide: getRepositoryToken(Shift),
+          useValue: {},
+        },
+        {
+          provide: DataSource,
           useValue: {},
         },
       ],

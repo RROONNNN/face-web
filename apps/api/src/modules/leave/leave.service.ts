@@ -56,6 +56,8 @@ export class LeaveService {
   }
 
   async findAll(input: QueryLeaveRequestsDto) {
+    const page = input.page ?? 1;
+    const limit = Math.min(input.limit ?? 20, 100);
     const where: FindOptionsWhere<LeaveRequest> = {};
 
     if (input.status) {
@@ -65,15 +67,23 @@ export class LeaveService {
       where.employeeId = input.empId;
     }
 
-    const leaveRequests = await this.leaveRequestRepository.find({
-      where,
-      relations: { employee: true, reviewedBy: true },
-      order: { startDate: 'DESC', createdAt: 'DESC' },
-    });
+    const [leaveRequests, total] =
+      await this.leaveRequestRepository.findAndCount({
+        where,
+        relations: { employee: true, reviewedBy: true },
+        order: { startDate: 'DESC', createdAt: 'DESC' },
+        skip: (page - 1) * limit,
+        take: limit,
+      });
 
-    return leaveRequests.map((leaveRequest) =>
-      this.toLeaveRequestResponse(leaveRequest),
-    );
+    return {
+      items: leaveRequests.map((leaveRequest) =>
+        this.toLeaveRequestResponse(leaveRequest),
+      ),
+      total,
+      page,
+      limit,
+    };
   }
 
   async approve(id: string, currentUser?: CurrentUser) {

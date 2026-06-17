@@ -18,6 +18,8 @@ import { AttendanceModule } from './modules/attendance/attendance.module';
 import { GeofenceModule } from './modules/geofence/geofence.module';
 import { FaceModule } from './modules/face/face.module';
 import { LeaveModule } from './modules/leave/leave.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
   imports: [
@@ -47,6 +49,8 @@ import { LeaveModule } from './modules/leave/leave.module';
     GeofenceModule,
     FaceModule,
     LeaveModule,
+    DashboardModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [

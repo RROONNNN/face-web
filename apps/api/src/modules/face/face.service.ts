@@ -12,6 +12,7 @@ import { User } from '../users/entities/user.entity';
 import { FaceData } from './entities/face-data.entity';
 import { UpdateFaceDataDto } from './dto/update-face-data.dto';
 import { SyncFaceDataDto } from './dto/sync-face-data.dto';
+import { QueryFaceDataDto } from './dto/query-face-data.dto';
 
 @Injectable()
 export class FaceService {
@@ -87,13 +88,22 @@ export class FaceService {
       .map((record) => this.toFaceDataResponse(record));
   }
 
-  async findAll() {
-    const records = await this.faceDataRepository.find({
+  async findAll(input: QueryFaceDataDto) {
+    const page = input.page ?? 1;
+    const limit = Math.min(input.limit ?? 20, 100);
+    const [records, total] = await this.faceDataRepository.findAndCount({
       relations: { employee: true },
       order: { updatedTime: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
     });
 
-    return records.map((record) => this.toFaceDataResponse(record));
+    return {
+      items: records.map((record) => this.toFaceDataResponse(record)),
+      total,
+      page,
+      limit,
+    };
   }
 
   async deleteByEmployeeId(employeeId: string) {

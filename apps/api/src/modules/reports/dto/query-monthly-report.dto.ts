@@ -1,11 +1,10 @@
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsUUID, Min } from 'class-validator';
-import { LeaveStatus } from '../enums/leave-status.enum';
+import { IsOptional, IsUUID, Matches } from 'class-validator';
+import { IsInt, Min } from 'class-validator';
 
-export class QueryLeaveRequestsDto {
-  @IsOptional()
-  @IsEnum(LeaveStatus)
-  status?: LeaveStatus;
+export class QueryMonthlyReportDto {
+  @Matches(/^\d{4}-\d{2}$/)
+  month!: string;
 
   @IsOptional()
   @IsUUID()
