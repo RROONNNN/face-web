@@ -4,6 +4,8 @@ import { DataSource } from 'typeorm';
 
 import { RefreshToken } from '../modules/auth/entities/refresh-token.entity';
 import { User } from '../modules/users/entities/user.entity';
+import { ShiftEntity } from '../modules/shifts/entities/shift.entity';
+import { ShiftWorkPeriodEntity } from '../modules/shifts/entities/shift-work-period.entity';
 
 config({ path: resolve(process.cwd(), '../../.env') });
 
@@ -15,7 +17,9 @@ export default new DataSource({
     password: process.env.DATABASE_PASSWORD,
     database: process.env.DATABASE_NAME,
 
-    entities: [User, RefreshToken],
+    entities: [User, RefreshToken, RefreshToken,
+        ShiftEntity,
+        ShiftWorkPeriodEntity,],
     migrations: ['src/database/migrations/*.ts'],
 
     synchronize: false,
