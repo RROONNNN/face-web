@@ -24,7 +24,7 @@ import { QueryShiftsDto } from './dto/query-shifts.dto';
 @UseGuards(AuthGuard, RolesGuard)
 @AccountRoles([AccountRole.Admin])
 export class ShiftsController {
-  constructor(private readonly shiftsService: ShiftsService) {}
+  constructor(private readonly shiftsService: ShiftsService) { }
 
   @Post('create')
   create(@Body() createShiftDto: CreateShiftDto) {
@@ -39,6 +39,11 @@ export class ShiftsController {
   @Get()
   findAll(@Query() input: QueryShiftsDto) {
     return this.shiftsService.findAll(input);
+  }
+
+  @Get('current-active')
+  getCurrentShiftActive() {
+    return this.shiftsService.getCurrentShiftActive();
   }
 
   @Patch(':id')

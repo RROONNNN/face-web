@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Shift } from './entities/shift.entity';
 import { DataSource, Repository } from 'typeorm';
@@ -32,6 +36,18 @@ export class ShiftsService {
   create(input: CreateShiftDto) {
     const shift = this.shiftRepository.create(input);
     return this.shiftRepository.save(shift);
+  }
+
+  async getCurrentShiftActive() {
+    const shift = await this.shiftRepository.findOne({
+      where: { isActive: true },
+    });
+
+    if (!shift) {
+      throw new BadRequestException('No active shift configured');
+    }
+
+    return shift;
   }
 
   async update(id: string, input: UpdateShiftDto) {

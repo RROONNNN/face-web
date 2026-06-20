@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThan, Repository } from 'typeorm';
 import { AccountRole } from '../auth/account-role.enum';
 import { CurrentUser } from '../auth/current-user.interface';
 import { User } from '../users/entities/user.entity';
@@ -13,6 +13,24 @@ import { FaceData } from './entities/face-data.entity';
 import { UpdateFaceDataDto } from './dto/update-face-data.dto';
 import { SyncFaceDataDto } from './dto/sync-face-data.dto';
 import { QueryFaceDataDto } from './dto/query-face-data.dto';
+import { QueryUpdatedFaceDataDto } from './dto/query-updated-face-data.dto';
+
+type UploadedJsonFile = {
+  buffer?: Buffer;
+  originalname?: string;
+};
+
+type UploadedFaceDataItem = {
+  employeeId: string;
+  updatedTime: Date;
+  listFaceEmbedding: number[][];
+  imageUrl?: string;
+};
+
+type UpsertFaceDataResult = {
+  record: FaceData;
+  action: 'created' | 'updated' | 'skipped';
+};
 
 @Injectable()
 export class FaceService {
@@ -21,7 +39,7 @@ export class FaceService {
     private readonly faceDataRepository: Repository<FaceData>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-  ) {}
+  ) { }
 
   async updateEmployeeFace(
     employeeId: string,
@@ -38,7 +56,7 @@ export class FaceService {
       imageUrl: input.imageUrl,
       updatedTime: new Date(),
       onlyIfNewer: false,
-    });
+    }).then((result) => result.record);
   }
 
   async sync(input: SyncFaceDataDto[], currentUser?: CurrentUser) {
@@ -88,6 +106,65 @@ export class FaceService {
       .map((record) => this.toFaceDataResponse(record));
   }
 
+  async syncFromJsonFile(file?: UploadedJsonFile, currentUser?: CurrentUser) {
+    if (!currentUser) {
+      throw new ForbiddenException('Authenticated user is required');
+    }
+
+    const items = this.parseUploadedFaceDataFile(file);
+
+    for (const item of items) {
+      this.assertCanWriteEmployeeFace(item.employeeId, currentUser);
+      await this.ensureEmployee(item.employeeId);
+    }
+
+    const summary = {
+      total: items.length,
+      created: 0,
+      updated: 0,
+      skipped: [] as string[],
+    };
+
+    for (const item of items) {
+      const result = await this.upsertFaceData({
+        employeeId: item.employeeId,
+        listFaceEmbedding: item.listFaceEmbedding,
+        imageUrl: item.imageUrl ?? '',
+        updatedTime: item.updatedTime,
+        onlyIfNewer: true,
+      });
+
+      if (result.action === 'skipped') {
+        summary.skipped.push(item.employeeId);
+      } else {
+        summary[result.action] += 1;
+      }
+    }
+
+    return {
+      ...summary,
+      imported: summary.created + summary.updated,
+    };
+  }
+
+  async findUpdatedAfter(input: QueryUpdatedFaceDataDto) {
+    if (!input.from_date) {
+      const records = await this.faceDataRepository.find({
+        relations: { employee: true },
+        order: { updatedTime: 'ASC' },
+      });
+      return records.map((record) => this.toFaceDataSyncResponse(record));
+    }
+    const fromDate = this.parseDateTime(input.from_date);
+    const records = await this.faceDataRepository.find({
+      relations: { employee: true },
+      where: { updatedTime: MoreThan(fromDate) },
+      order: { updatedTime: 'ASC' },
+    });
+
+    return records.map((record) => this.toFaceDataSyncResponse(record));
+  }
+
   async findAll(input: QueryFaceDataDto) {
     const page = input.page ?? 1;
     const limit = Math.min(input.limit ?? 20, 100);
@@ -124,7 +201,7 @@ export class FaceService {
     imageUrl: string;
     updatedTime: Date;
     onlyIfNewer: boolean;
-  }) {
+  }): Promise<UpsertFaceDataResult> {
     const existing = await this.faceDataRepository.findOne({
       where: { employeeId: input.employeeId },
     });
@@ -134,17 +211,28 @@ export class FaceService {
         input.onlyIfNewer &&
         existing.updatedTime.getTime() >= input.updatedTime.getTime()
       ) {
-        return existing;
+        return { record: existing, action: 'skipped' };
       }
 
       existing.listFaceEmbedding = input.listFaceEmbedding;
-      existing.imageUrl = input.imageUrl;
+      existing.imageUrl = input.imageUrl || existing.imageUrl;
       existing.updatedTime = input.updatedTime;
-      return this.faceDataRepository.save(existing);
+      return {
+        record: await this.faceDataRepository.save(existing),
+        action: 'updated',
+      };
     }
 
-    const faceData = this.faceDataRepository.create(input);
-    return this.faceDataRepository.save(faceData);
+    const faceData = this.faceDataRepository.create({
+      employeeId: input.employeeId,
+      listFaceEmbedding: input.listFaceEmbedding,
+      imageUrl: input.imageUrl,
+      updatedTime: input.updatedTime,
+    });
+    return {
+      record: await this.faceDataRepository.save(faceData),
+      action: 'created',
+    };
   }
 
   private assertCanWriteEmployeeFace(
@@ -193,14 +281,89 @@ export class FaceService {
     }
   }
 
-  private parseDateTime(value: string) {
-    const date = new Date(value);
+  private parseUploadedFaceDataFile(file?: UploadedJsonFile) {
+    if (!file?.buffer) {
+      throw new BadRequestException('JSON file is required');
+    }
+
+    let payload: unknown;
+
+    try {
+      payload = JSON.parse(file.buffer.toString('utf8')) as unknown;
+    } catch {
+      throw new BadRequestException('Uploaded file must contain valid JSON');
+    }
+
+    if (!Array.isArray(payload)) {
+      throw new BadRequestException('Uploaded JSON must be an array');
+    }
+
+    return payload.map((item, index) =>
+      this.parseUploadedFaceDataItem(item, index),
+    );
+  }
+
+  private parseUploadedFaceDataItem(
+    item: unknown,
+    index: number,
+  ): UploadedFaceDataItem {
+    if (!this.isRecord(item)) {
+      throw new BadRequestException(`Item at index ${index} must be an object`);
+    }
+
+    const employeeId = item.empId ?? item.employeeId;
+    const updatedTime = item.updatedTime ?? item.updateTime;
+    const listFaceEmbedding = item.listFaceEmbeddingg ?? item.listFaceEmbedding;
+    const imageUrl = item.imageUrl;
+
+    if (typeof employeeId !== 'string' || !this.isUuid(employeeId)) {
+      throw new BadRequestException(`Item at index ${index} has invalid empId`);
+    }
+
+    const parsedUpdatedTime = this.parseDateTime(updatedTime);
+    this.assertEmbeddingMatrix(listFaceEmbedding as number[][]);
+
+    if (imageUrl !== undefined && typeof imageUrl !== 'string') {
+      throw new BadRequestException(
+        `Item at index ${index} has invalid imageUrl`,
+      );
+    }
+
+    return {
+      employeeId,
+      updatedTime: parsedUpdatedTime,
+      listFaceEmbedding: listFaceEmbedding as number[][],
+      imageUrl,
+    };
+  }
+
+  private parseDateTime(value: unknown) {
+    if (
+      typeof value !== 'string' &&
+      typeof value !== 'number' &&
+      !(value instanceof Date)
+    ) {
+      throw new BadRequestException('Invalid updatedTime');
+    }
+
+    const date =
+      value instanceof Date ? new Date(value.getTime()) : new Date(value);
 
     if (Number.isNaN(date.getTime())) {
       throw new BadRequestException('Invalid updatedTime');
     }
 
     return date;
+  }
+
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+  }
+
+  private isUuid(value: string) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value,
+    );
   }
 
   private toFaceDataResponse(faceData: FaceData) {
@@ -215,6 +378,15 @@ export class FaceService {
       updatedTime: faceData.updatedTime,
       createdAt: faceData.createdAt,
       updatedAt: faceData.updatedAt,
+    };
+  }
+
+  private toFaceDataSyncResponse(faceData: FaceData) {
+    return {
+      empId: faceData.employeeId,
+      updatedTime: faceData.updatedTime,
+      listFaceEmbedding: faceData.listFaceEmbedding,
+      personName: faceData.employee?.name ?? null,
     };
   }
 

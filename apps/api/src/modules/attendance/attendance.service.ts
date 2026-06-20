@@ -16,6 +16,7 @@ import { AttendanceMethod } from './enums/attendance-method.enum';
 import { AttendanceStatus } from './enums/attendance-status.enum';
 import { CreateAttendanceEventDto } from './dto/create-attendance-event.dto';
 import { SyncAttendanceEventDto } from './dto/sync-attendance-event.dto';
+import { SyncBulkAttendanceDto } from './dto/sync-bulk-attendance.dto';
 import { CreateManualAttendanceEventDto } from './dto/create-manual-attendance-event.dto';
 import { UpdateAttendanceEventDto } from './dto/update-attendance-event.dto';
 import { QueryAttendanceDto } from './dto/query-attendance.dto';
@@ -40,7 +41,7 @@ export class AttendanceService {
     private readonly shiftRepository: Repository<Shift>,
     private readonly geofenceService: GeofenceService,
     private readonly attendanceRealtimeGateway: AttendanceRealtimeGateway,
-  ) {}
+  ) { }
 
   createCheckIn(input: CreateAttendanceEventDto, currentUser?: CurrentUser) {
     return this.createMobileEvent(this.checkInRepository, input, currentUser);
@@ -56,6 +57,61 @@ export class AttendanceService {
 
   syncCheckOuts(input: SyncAttendanceEventDto[], currentUser?: CurrentUser) {
     return this.syncEvents(this.checkOutRepository, input, currentUser);
+  }
+
+  async syncBulkAttendance(
+    input: SyncBulkAttendanceDto,
+    currentUser?: CurrentUser,
+  ) {
+    const results: Array<{ employeeId: string; successLocalIds: number[] }> = [];
+
+    for (const userEntry of input.bulk_users) {
+      const successLocalIds: number[] = [];
+
+      for (const item of userEntry.io) {
+        const isCheckIn = item.in_time !== undefined;
+        const timeStr = isCheckIn ? item.in_time! : item.out_time!;
+        const repository = isCheckIn
+          ? this.checkInRepository
+          : this.checkOutRepository;
+
+        try {
+          this.assertCanCreateMobileEvent(userEntry.employee_id, currentUser);
+
+          const time = this.parseDateTime(timeStr);
+          const duplicate = await this.findNearDuplicate(
+            repository,
+            userEntry.employee_id,
+            time,
+          );
+
+          if (!duplicate) {
+            await this.createEvent(
+              repository,
+              isCheckIn ? 'checkIn' : 'checkOut',
+              {
+                employeeId: userEntry.employee_id,
+                time,
+                workDate: this.normalizeWorkDateFromTime(time),
+                latitude: item.lat,
+                longitude: item.lon,
+                method: AttendanceMethod.Sync,
+                imagePath: null,
+                createdById: null,
+              },
+            );
+          }
+
+          successLocalIds.push(item.id);
+        } catch {
+          // item.id not added to successLocalIds on failure
+        }
+      }
+
+      results.push({ employeeId: userEntry.employee_id, successLocalIds });
+    }
+
+    return results;
   }
 
   createManualCheckIn(

@@ -20,6 +20,7 @@ import type { AuthenticatedRequest } from '../auth/authenticated-req.type';
 import { AttendanceService } from './attendance.service';
 import { CreateAttendanceEventDto } from './dto/create-attendance-event.dto';
 import { SyncAttendanceEventDto } from './dto/sync-attendance-event.dto';
+import { SyncBulkAttendanceDto } from './dto/sync-bulk-attendance.dto';
 import { CreateManualAttendanceEventDto } from './dto/create-manual-attendance-event.dto';
 import { UpdateAttendanceEventDto } from './dto/update-attendance-event.dto';
 import { QueryAttendanceDto } from './dto/query-attendance.dto';
@@ -61,6 +62,14 @@ export class AttendanceController {
     @Req() request: AuthenticatedRequest,
   ) {
     return this.attendanceService.syncCheckOuts(input, request.user);
+  }
+
+  @Post('sync/bulk')
+  syncBulk(
+    @Body() input: SyncBulkAttendanceDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.attendanceService.syncBulkAttendance(input, request.user);
   }
 
   @Post('manual/checkIn')
