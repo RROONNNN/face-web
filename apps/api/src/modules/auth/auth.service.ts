@@ -4,15 +4,12 @@ import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { RefreshToken } from './entities/refresh-token.entity';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
+import { AccessTokenPayload } from './types/access-token-payload.type';
 
-type AccessTokenPayload = {
-    sub: string;
-    employeeCode: string;
-    role: string;
-};
+
 
 @Injectable()
 export class AuthService {
@@ -74,5 +71,79 @@ export class AuthService {
         await this.refreshTokenRepository.save(refreshToken);
 
         return rawToken;
+    }
+
+    async logout(input: {
+        userId: string;
+        rawRefreshToken?: string;
+    }) {
+        const { userId, rawRefreshToken } = input;
+        if (rawRefreshToken) {
+            const tokens = await this.refreshTokenRepository.find({
+                where: { userId, revokedAt: IsNull() },
+            });
+
+            for (const token of tokens) {
+                if (await bcrypt.compare(rawRefreshToken, token.tokenHash)) {
+                    token.revokedAt = new Date();
+                    await this.refreshTokenRepository.save(token);
+                    return { revoked: true };
+                }
+            }
+        }
+
+        await this.refreshTokenRepository.update(
+            { userId, revokedAt: IsNull() },
+            { revokedAt: new Date() },
+        );
+
+        return { revoked: true };
+    }
+    async refresh(rawRefreshToken: string) {
+        const refreshToken = await this.findValidRefreshToken(rawRefreshToken);
+        const user = await this.usersService.findById(refreshToken.userId);
+
+        if (!user) {
+            throw new UnauthorizedException('Invalid refresh token');
+        }
+        refreshToken.revokedAt = new Date();
+        await this.refreshTokenRepository.save(refreshToken);
+
+        const accessToken = await this.signAccessToken({
+            sub: user.id,
+            employeeCode: user.employeeCode,
+            role: user.accountRole,
+        });
+
+        const newRefreshToken = await this.createRefreshToken(user.id);
+
+        return {
+            accessToken,
+            refreshToken: newRefreshToken,
+            user: {
+                id: user.id,
+                employeeCode: user.employeeCode,
+                name: user.name,
+                accountRole: user.accountRole,
+            }
+        };
+
+    }
+
+    private async findValidRefreshToken(rawRefreshToken: string): Promise<RefreshToken> {
+        const tokens = await this.refreshTokenRepository.find({
+            where: { revokedAt: IsNull() },
+        });
+
+        for (const token of tokens) {
+            const isMatch = await bcrypt.compare(rawRefreshToken, token.tokenHash);
+            const isExpired = token.expiresAt.getTime() <= Date.now();
+
+            if (isMatch && !isExpired) {
+                return token;
+            }
+        }
+
+        throw new UnauthorizedException('Invalid refresh token');
     }
 }
