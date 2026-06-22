@@ -5,27 +5,27 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ShiftEntity } from './entities/shift.entity';
 import { DataSource, Repository } from 'typeorm';
-import { ShiftWorkPeriodEntity } from './entities/shift-work-period.entity';
-import { QueryShiftsDto } from './dto/query-shift.dto';
 import { PaginatedResponse } from '../../common/interfaces/paginated-response.interface';
-import { CreateShiftDto } from './dto/create-shift.dto';
 import { TimeUtil } from '../../common/utils/time.util';
+import { CreateShiftDto } from './dto/create-shift.dto';
+import { QueryShiftsDto } from './dto/query-shift.dto';
 import { UpdateShiftDto } from './dto/update-shift.dto';
+import { ShiftWorkPeriod } from './entities/shift-work-period.entity';
+import { Shift } from './entities/shift.entity';
 
 
 @Injectable()
 export class ShiftsService {
     constructor(
-        @InjectRepository(ShiftEntity)
-        private readonly shiftRepository: Repository<ShiftEntity>,
-        @InjectRepository(ShiftWorkPeriodEntity)
-        private readonly workPeriodRepository: Repository<ShiftWorkPeriodEntity>,
+        @InjectRepository(Shift)
+        private readonly shiftRepository: Repository<Shift>,
+        @InjectRepository(ShiftWorkPeriod)
+        private readonly workPeriodRepository: Repository<ShiftWorkPeriod>,
         private readonly dataSource: DataSource,
     ) {
     }
-    async findAllShifts(query: QueryShiftsDto): Promise<PaginatedResponse<ShiftEntity>> {
+    async findAllShifts(query: QueryShiftsDto): Promise<PaginatedResponse<Shift>> {
         const {
             search,
             isActive,
@@ -61,7 +61,7 @@ export class ShiftsService {
             },
         };
     }
-    async createShift(createShiftDto: CreateShiftDto): Promise<ShiftEntity> {
+    async createShift(createShiftDto: CreateShiftDto): Promise<Shift> {
         const name = createShiftDto.name.trim();
         this.validateWorkPeriods(createShiftDto.workPeriods);
         return this.dataSource.transaction(
@@ -110,7 +110,7 @@ export class ShiftsService {
     async updateShift(
         id: string,
         updateShiftDto: UpdateShiftDto,
-    ): Promise<ShiftEntity> {
+    ): Promise<Shift> {
         const name = updateShiftDto.name?.trim();
 
         if (name !== undefined && name.length === 0) {
@@ -122,9 +122,9 @@ export class ShiftsService {
         }
 
         return this.dataSource.transaction(async (manager) => {
-            const shiftRepository = manager.getRepository(ShiftEntity);
+            const shiftRepository = manager.getRepository(Shift);
             const workPeriodRepository = manager.getRepository(
-                ShiftWorkPeriodEntity,
+                ShiftWorkPeriod,
             );
             const shift = await shiftRepository.findOne({ where: { id } });
 
@@ -188,7 +188,7 @@ export class ShiftsService {
         });
     }
 
-    async deactivateShift(id: string): Promise<ShiftEntity> {
+    async deactivateShift(id: string): Promise<Shift> {
         const shift = await this.shiftRepository.findOne({ where: { id } });
 
         if (!shift) {

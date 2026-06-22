@@ -2,10 +2,13 @@ import { config } from 'dotenv';
 import { resolve } from 'path';
 import { DataSource } from 'typeorm';
 
+import { AttendanceEvent } from '../modules/attendance/entities/attendance-event.entity';
+import { AttendanceRecord } from '../modules/attendance/entities/attendance-record.entity';
 import { RefreshToken } from '../modules/auth/entities/refresh-token.entity';
+import { EmployeeShiftAssignment } from '../modules/shifts/entities/employee-shift-assignment.entity';
+import { ShiftWorkPeriod } from '../modules/shifts/entities/shift-work-period.entity';
+import { Shift } from '../modules/shifts/entities/shift.entity';
 import { User } from '../modules/users/entities/user.entity';
-import { ShiftEntity } from '../modules/shifts/entities/shift.entity';
-import { ShiftWorkPeriodEntity } from '../modules/shifts/entities/shift-work-period.entity';
 
 config({ path: resolve(process.cwd(), '../../.env') });
 
@@ -17,9 +20,15 @@ export default new DataSource({
     password: process.env.DATABASE_PASSWORD,
     database: process.env.DATABASE_NAME,
 
-    entities: [User, RefreshToken, RefreshToken,
-        ShiftEntity,
-        ShiftWorkPeriodEntity,],
+    entities: [
+        User,
+        RefreshToken,
+        Shift,
+        ShiftWorkPeriod,
+        EmployeeShiftAssignment,
+        AttendanceRecord,
+        AttendanceEvent,
+    ],
     migrations: ['src/database/migrations/*.ts'],
 
     synchronize: false,

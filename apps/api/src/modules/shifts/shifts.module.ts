@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
-import { ShiftsService } from './shifts.service';
-import { ShiftsController } from './shifts.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ShiftEntity } from './entities/shift.entity';
-import { ShiftWorkPeriodEntity } from './entities/shift-work-period.entity';
+import { EmployeeShiftAssignment } from './entities/employee-shift-assignment.entity';
+import { ShiftWorkPeriod } from './entities/shift-work-period.entity';
+import { Shift } from './entities/shift.entity';
+import { ShiftsController } from './shifts.controller';
+import { ShiftsService } from './shifts.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ShiftEntity, ShiftWorkPeriodEntity])],
+  imports: [TypeOrmModule.forFeature([Shift, ShiftWorkPeriod, EmployeeShiftAssignment])],
   providers: [ShiftsService],
   controllers: [ShiftsController]
 })
-export class ShiftsModule {}
+export class ShiftsModule { }

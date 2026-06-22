@@ -1,17 +1,17 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
-import { ShiftEntity } from "./shift.entity";
+import { Shift } from "./shift.entity";
 
 
 @Entity('shift_work_periods')
-export class ShiftWorkPeriodEntity {
+export class ShiftWorkPeriod {
     @PrimaryGeneratedColumn('uuid')
     id!: string;
 
-    @ManyToOne(() => ShiftEntity, (shift) => shift.workPeriods, {
+    @ManyToOne(() => Shift, (shift) => shift.workPeriods, {
         onDelete: 'CASCADE',
     })
     @JoinColumn({ name: 'shift_id' })
-    shift!: ShiftEntity;
+    shift!: Shift;
 
     @Column({ name: 'shift_id', type: 'uuid' })
     shiftId!: string;

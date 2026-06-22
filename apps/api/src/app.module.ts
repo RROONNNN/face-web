@@ -1,19 +1,21 @@
-import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { LoggerMiddleware } from './common/logger.middleware';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
-import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
-import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { ErrorsInterceptor } from './common/interceptors/errors.interceptor';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { LoggerMiddleware } from './common/logger.middleware';
 import { databaseConfig } from './config/database.config';
 import { jwtConfig } from './config/jwt.config';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { UsersModule } from './modules/users/users.module';
+import { AttendanceModule } from './modules/attendance/attendance.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ShiftsModule } from './modules/shifts/shifts.module';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -39,6 +41,8 @@ import { ShiftsModule } from './modules/shifts/shifts.module';
     UsersModule,
     AuthModule,
     ShiftsModule,
+    AttendanceModule,
+    ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
   providers: [

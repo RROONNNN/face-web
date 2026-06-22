@@ -1,9 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ShiftsService } from './shifts.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { ShiftEntity } from './entities/shift.entity';
-import { ShiftWorkPeriodEntity } from './entities/shift-work-period.entity';
 import { DataSource } from 'typeorm';
+import { ShiftWorkPeriod } from './entities/shift-work-period.entity';
+import { Shift } from './entities/shift.entity';
+import { ShiftsService } from './shifts.service';
 
 describe('ShiftsService', () => {
   let service: ShiftsService;
@@ -13,11 +13,11 @@ describe('ShiftsService', () => {
       providers: [
         ShiftsService,
         {
-          provide: getRepositoryToken(ShiftEntity),
+          provide: getRepositoryToken(Shift),
           useValue: {},
         },
         {
-          provide: getRepositoryToken(ShiftWorkPeriodEntity),
+          provide: getRepositoryToken(ShiftWorkPeriod),
           useValue: {},
         },
         {

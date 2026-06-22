@@ -1,5 +1,11 @@
 {
-    "cSpell.words": [
-        "timestamptz"
-    ]
+  "js/ts.suggest.autoImports": true,
+  "js/ts.updateImportsOnFileMove.enabled": "always",
+  "js/ts.preferences.importModuleSpecifier": "relative",
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit"
+  },
+  "cSpell.words": [
+    "timestamptz"
+  ]
 }
