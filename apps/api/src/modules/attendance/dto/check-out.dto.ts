@@ -10,6 +10,9 @@ export class CheckOutDto {
 
   @IsEnum(AttendanceSource)
   source!: AttendanceSource;
+  @IsOptional()
+  @IsNumber()
+  faceSimilarity?: number;
 
   @IsOptional()
   @IsNumber()

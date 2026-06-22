@@ -20,8 +20,19 @@ export class User {
         default: AccountRole.Employee,
     })
     accountRole!: AccountRole;
+
+    @Column({ name: 'is_active', default: true })
+    isActive!: boolean;
+
     @Column({ type: 'varchar', length: 120, nullable: true })
     department!: string | null;
+
+    /**
+     * FK to departments.id — set when the employee is assigned to a department.
+     * Nullable to support users who are not yet assigned to any department.
+     */
+    @Column({ name: 'department_id', type: 'uuid', nullable: true })
+    departmentId!: string | null;
     @Column({ name: 'job_title', type: 'varchar', length: 120, nullable: true })
     jobTitle!: string | null;
 

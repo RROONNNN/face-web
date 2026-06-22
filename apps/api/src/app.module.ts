@@ -14,6 +14,7 @@ import { databaseConfig } from './config/database.config';
 import { jwtConfig } from './config/jwt.config';
 import { AttendanceModule } from './modules/attendance/attendance.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { DepartmentsModule } from './modules/departments/departments.module';
 import { ShiftsModule } from './modules/shifts/shifts.module';
 import { UsersModule } from './modules/users/users.module';
 
@@ -42,6 +43,7 @@ import { UsersModule } from './modules/users/users.module';
     AuthModule,
     ShiftsModule,
     AttendanceModule,
+    DepartmentsModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],

@@ -64,9 +64,16 @@ export class AttendanceService {
     /**
      * Combine a YYYY-MM-DD workDate and a HH:mm time string into a Date.
      * Interprets the time in the configured timezone offset.
+     * e.g. workDate="2026-06-23", time="08:00:00"
      */
     private buildTimestamptz(workDate: string, time: string): Date {
-        return new Date(`${workDate}T${time}:00${this.appTzOffset}`);
+        try {
+            return new Date(`${workDate}T${time}${this.appTzOffset}`);
+        } catch (error) {
+            throw new BadRequestException(
+                `Failed to build timestamp: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            );
+        }
     }
 
     /**
@@ -105,7 +112,7 @@ export class AttendanceService {
     ): number {
         const diffMs = actualCheckInAt.getTime() - expectedCheckInAt.getTime();
         const diffMin = Math.floor(diffMs / 60_000);
-        return Math.max(0, diffMin - lateGraceMinutes);
+        return Math.max(diffMin, diffMin - lateGraceMinutes);
     }
 
     /**
@@ -245,7 +252,7 @@ export class AttendanceService {
 
             const { record } = await this.resolveOrCreateRecord(dto.employeeId, workDate, manager);
 
-            if (record.status !== AttendanceStatus.CHECKED_IN) {
+            if (record.status !== AttendanceStatus.CHECKED_IN && record.status !== AttendanceStatus.COMPLETED) {
                 throw new BadRequestException(
                     `Cannot check out: attendance record is in status '${record.status}'.`,
                 );
@@ -254,15 +261,10 @@ export class AttendanceService {
             await eventRepo.save(
                 this.createEvent(record.id, AttendanceEventType.CHECK_OUT, occurredAt, dto.source, dto),
             );
-
             record.auditCheckOut = [...(record.auditCheckOut ?? []), occurredAt];
-
-            if (!record.checkedOutAt) {
-                record.checkedOutAt = occurredAt;
-                record.status = AttendanceStatus.COMPLETED;
-                record.checkOutSource = dto.source;
-            }
-
+            record.checkedOutAt = occurredAt;
+            record.status = AttendanceStatus.COMPLETED;
+            record.checkOutSource = dto.source;
             return recordRepo.save(record);
         });
     }
@@ -344,6 +346,35 @@ export class AttendanceService {
     // Offline sync (batch)
     // -------------------------------------------------------------------------
 
+    /**
+     * Returns true if an event of the given type already exists for the employee's
+     * attendance record on that workDate with occurredAt within 5 seconds of the given time.
+     */
+    private async isDuplicateEvent(
+        employeeId: string,
+        workDate: string,
+        type: AttendanceEventType,
+        occurredAt: Date,
+    ): Promise<boolean> {
+        const assignment = await this.assignmentRepo.findOne({
+            where: { employeeId, workDate },
+        });
+        if (!assignment) return false;
+
+        const record = await this.recordRepo.findOne({
+            where: { shiftAssignmentId: assignment.id },
+        });
+        if (!record) return false;
+
+        const events = await this.eventRepo.find({
+            where: { attendanceRecordId: record.id, type },
+        });
+
+        return events.some(
+            (e) => Math.abs(e.occurredAt.getTime() - occurredAt.getTime()) < 5_000,
+        );
+    }
+
     async syncCheckIn(
         events: SyncCheckInDto[],
     ): Promise<{ failedLocalIds: string[] }> {
@@ -351,18 +382,22 @@ export class AttendanceService {
 
         for (const item of events) {
             try {
-                await this.checkIn(
-                    {
-                        occurredAt: item.occurredAt,
-                        source: item.source,
-                        faceSimilarity: item.faceSimilarity,
-                        latitude: item.latitude,
-                        longitude: item.longitude,
-                        deviceId: item.deviceId,
-                        employeeId: item.employeeId,
+                const workDate = this.toWorkDate(item.occurredAt);
+                const occurredAt = new Date(item.occurredAt);
 
-                    },
-                );
+                if (await this.isDuplicateEvent(item.employeeId, workDate, AttendanceEventType.CHECK_IN, occurredAt)) {
+                    continue;
+                }
+
+                await this.checkIn({
+                    occurredAt: item.occurredAt,
+                    source: item.source,
+                    faceSimilarity: item.faceSimilarity,
+                    latitude: item.latitude,
+                    longitude: item.longitude,
+                    deviceId: item.deviceId,
+                    employeeId: item.employeeId,
+                });
             } catch {
                 failedLocalIds.push(item.localId);
             }
@@ -378,16 +413,21 @@ export class AttendanceService {
 
         for (const item of events) {
             try {
-                await this.checkOut(
-                    {
-                        occurredAt: item.occurredAt,
-                        source: item.source,
-                        latitude: item.latitude,
-                        longitude: item.longitude,
-                        deviceId: item.deviceId,
-                        employeeId: item.employeeId,
-                    },
-                );
+                const workDate = this.toWorkDate(item.occurredAt);
+                const occurredAt = new Date(item.occurredAt);
+
+                if (await this.isDuplicateEvent(item.employeeId, workDate, AttendanceEventType.CHECK_OUT, occurredAt)) {
+                    continue;
+                }
+
+                await this.checkOut({
+                    occurredAt: item.occurredAt,
+                    source: item.source,
+                    latitude: item.latitude,
+                    longitude: item.longitude,
+                    deviceId: item.deviceId,
+                    employeeId: item.employeeId,
+                });
             } catch {
                 failedLocalIds.push(item.localId);
             }

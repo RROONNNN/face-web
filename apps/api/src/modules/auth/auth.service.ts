@@ -8,6 +8,7 @@ import { IsNull, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { AccessTokenPayload } from './types/access-token-payload.type';
+import { RegisterDto } from './dto/register.dto';
 
 
 
@@ -21,6 +22,15 @@ export class AuthService {
         @InjectRepository(RefreshToken)
         private readonly refreshTokenRepository: Repository<RefreshToken>,
     ) { }
+    /**
+     * Register a new employee (or admin) account.
+     * All validation and password hashing is handled by UsersService.create().
+     * Returns the created user without passwordHash.
+     */
+    async register(dto: RegisterDto) {
+        return this.usersService.create(dto);
+    }
+
     async login(input: { employeeCode: string; password: string }) {
         const user = await this.usersService.findByEmployeeCode(input.employeeCode);
         if (!user) {

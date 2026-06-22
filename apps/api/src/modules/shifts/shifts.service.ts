@@ -8,11 +8,18 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { PaginatedResponse } from '../../common/interfaces/paginated-response.interface';
 import { TimeUtil } from '../../common/utils/time.util';
+import { AttendanceRecord } from '../attendance/entities/attendance-record.entity';
+import { AttendanceStatus } from '../attendance/enums/attendance-status.enum';
+import { User } from '../users/entities/user.entity';
 import { CreateShiftDto } from './dto/create-shift.dto';
+import { QueryShiftAssignmentsDto } from './dto/query-shift-assignments.dto';
 import { QueryShiftsDto } from './dto/query-shift.dto';
 import { UpdateShiftDto } from './dto/update-shift.dto';
+import { UpsertShiftAssignmentDto } from './dto/upsert-shift-assignment.dto';
+import { EmployeeShiftAssignment } from './entities/employee-shift-assignment.entity';
 import { ShiftWorkPeriod } from './entities/shift-work-period.entity';
 import { Shift } from './entities/shift.entity';
+import { ShiftAssignmentSource } from './enums/shift-assignment-source.enum';
 
 
 @Injectable()
@@ -22,6 +29,12 @@ export class ShiftsService {
         private readonly shiftRepository: Repository<Shift>,
         @InjectRepository(ShiftWorkPeriod)
         private readonly workPeriodRepository: Repository<ShiftWorkPeriod>,
+        @InjectRepository(EmployeeShiftAssignment)
+        private readonly assignmentRepository: Repository<EmployeeShiftAssignment>,
+        @InjectRepository(AttendanceRecord)
+        private readonly attendanceRecordRepository: Repository<AttendanceRecord>,
+        @InjectRepository(User)
+        private readonly userRepository: Repository<User>,
         private readonly dataSource: DataSource,
     ) {
     }
@@ -242,6 +255,200 @@ export class ShiftsService {
         }
 
 
+    }
+
+    /**
+     * Guards against modifying a shift assignment after the 02:00 AM cutoff
+     * of the assignment's work date (in the configured application timezone).
+     *
+     * Rationale: the nightly cron runs at 01:00 AM, so 02:00 AM gives a safe
+     * one-hour window after cron completion before the work day begins.
+     *
+     * @throws BadRequestException if now >= workDate 02:00 AM (app timezone)
+     */
+    private assertAssignmentWindowOpen(workDate: string): void {
+        const appTzOffset = process.env['APP_TZ_OFFSET'] ?? '+07:00';
+        const cutoff = new Date(`${workDate}T02:00:00${appTzOffset}`);
+        const now = new Date();
+
+        if (now >= cutoff) {
+            throw new BadRequestException(
+                `Cannot modify the shift assignment for ${workDate}: ` +
+                `the 02:00 AM cut-off has already passed (current time: ${now.toISOString()}).`,
+            );
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Assignment management
+    // -------------------------------------------------------------------------
+
+    /**
+     * Admin upsert: create or overwrite a shift assignment for a single employee on a specific date.
+     *
+     * Logic:
+     * 1. Validate employee exists.
+     * 2. Validate shift exists and is active.
+     * 3. Validate leaveShiftWorkPeriodIds (if provided) belong to the target shift.
+     * 4. Upsert the assignment row (source = admin_manual).
+     * 5. If an AttendanceRecord exists for this assignment and is still PENDING,
+     *    recalculate expectedCheckInAt/expectedCheckOutAt from the new shift.
+     */
+    async upsertAssignment(
+        dto: UpsertShiftAssignmentDto,
+        assignedByUserId: string,
+    ): Promise<EmployeeShiftAssignment> {
+        // Guard: block changes once the 02:00 AM cut-off for the work date has passed.
+        this.assertAssignmentWindowOpen(dto.workDate);
+
+        return this.dataSource.transaction(async (manager) => {
+            const userRepo = manager.getRepository(User);
+            const shiftRepo = manager.getRepository(Shift);
+            const workPeriodRepo = manager.getRepository(ShiftWorkPeriod);
+            const assignmentRepo = manager.getRepository(EmployeeShiftAssignment);
+            const recordRepo = manager.getRepository(AttendanceRecord);
+
+            // 1. Validate employee
+            const employee = await userRepo.findOne({ where: { id: dto.employeeId } });
+            if (!employee) {
+                throw new NotFoundException(`Employee with id "${dto.employeeId}" not found.`);
+            }
+
+            // 2. Validate shift
+            const shift = await shiftRepo.findOne({ where: { id: dto.shiftId } });
+            if (!shift) {
+                throw new NotFoundException(`Shift with id "${dto.shiftId}" not found.`);
+            }
+            if (!shift.isActive) {
+                throw new BadRequestException(
+                    `Shift "${shift.name}" is inactive and cannot be assigned.`,
+                );
+            }
+
+            // 3. Validate leaveShiftWorkPeriodIds
+            const leaveIds = dto.leaveShiftWorkPeriodIds ?? [];
+            if (leaveIds.length > 0) {
+                const workPeriods = await workPeriodRepo.find({ where: { shiftId: dto.shiftId } });
+                const validIds = new Set(workPeriods.map((p) => p.id));
+                const invalidIds = leaveIds.filter((id) => !validIds.has(id));
+                if (invalidIds.length > 0) {
+                    throw new BadRequestException(
+                        `leaveShiftWorkPeriodIds contains IDs that do not belong to shift "${shift.name}": ${invalidIds.join(', ')}`,
+                    );
+                }
+            }
+
+            // 4. Upsert assignment
+            await assignmentRepo
+                .createQueryBuilder()
+                .insert()
+                .into(EmployeeShiftAssignment)
+                .values({
+                    employeeId: dto.employeeId,
+                    shiftId: dto.shiftId,
+                    workDate: dto.workDate,
+                    source: ShiftAssignmentSource.ADMIN_MANUAL,
+                    assignedByUserId,
+                    note: dto.note ?? null,
+                    leaveShiftWorkPeriodIds: leaveIds,
+                })
+                .orUpdate(
+                    ['shift_id', 'source', 'assigned_by_user_id', 'note', 'leave_shift_work_period_ids'],
+                    ['employee_id', 'work_date'],
+                )
+                .execute();
+
+            const assignment = await assignmentRepo.findOneOrFail({
+                where: { employeeId: dto.employeeId, workDate: dto.workDate },
+                relations: { shift: { workPeriods: true }, assignedByUser: true },
+            });
+
+            // 5. Recalculate AttendanceRecord expected times if PENDING
+            const record = await recordRepo.findOne({
+                where: { shiftAssignmentId: assignment.id, status: AttendanceStatus.PENDING },
+            });
+
+            if (record) {
+                const workPeriods = await workPeriodRepo.find({ where: { shiftId: dto.shiftId } });
+                const activePeriods = workPeriods
+                    .filter((p) => !leaveIds.includes(p.id))
+                    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+                if (activePeriods.length === 0) {
+                    throw new BadRequestException(
+                        'No active work periods remaining after applying leave periods.',
+                    );
+                }
+
+                const appTzOffset = process.env['APP_TZ_OFFSET'] ?? '+07:00';
+                const buildTs = (time: string) => new Date(`${dto.workDate}T${time}:00${appTzOffset}`);
+
+                record.expectedCheckInAt = buildTs(activePeriods[0].startTime);
+                record.expectedCheckOutAt = buildTs(activePeriods[activePeriods.length - 1].endTime);
+                await recordRepo.save(record);
+            }
+
+            return assignment;
+        });
+    }
+
+    /**
+     * Paginated list of shift assignments with optional filters.
+     */
+    async findAllAssignments(
+        query: QueryShiftAssignmentsDto,
+    ): Promise<PaginatedResponse<EmployeeShiftAssignment>> {
+        const {
+            employeeId,
+            shiftId,
+            workDate,
+            dateFrom,
+            dateTo,
+            source,
+            page = 1,
+            limit = 20,
+            sortBy = 'workDate',
+            sortOrder = 'DESC',
+        } = query;
+
+        const qb = this.assignmentRepository
+            .createQueryBuilder('assignment')
+            .leftJoinAndSelect('assignment.employee', 'employee')
+            .leftJoinAndSelect('assignment.shift', 'shift')
+            .leftJoinAndSelect('assignment.assignedByUser', 'assignedByUser')
+            .orderBy(`assignment.${sortBy}`, sortOrder)
+            .skip((page - 1) * limit)
+            .take(limit);
+
+        if (employeeId) {
+            qb.andWhere('assignment.employeeId = :employeeId', { employeeId });
+        }
+        if (shiftId) {
+            qb.andWhere('assignment.shiftId = :shiftId', { shiftId });
+        }
+        if (workDate) {
+            qb.andWhere('assignment.workDate = :workDate', { workDate });
+        }
+        if (dateFrom) {
+            qb.andWhere('assignment.workDate >= :dateFrom', { dateFrom });
+        }
+        if (dateTo) {
+            qb.andWhere('assignment.workDate <= :dateTo', { dateTo });
+        }
+        if (source) {
+            qb.andWhere('assignment.source = :source', { source });
+        }
+
+        const [items, total] = await qb.getManyAndCount();
+        return {
+            items,
+            meta: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
+            },
+        };
     }
 
 
