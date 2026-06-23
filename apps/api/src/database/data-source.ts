@@ -5,6 +5,7 @@ import { DataSource } from 'typeorm';
 import { AttendanceEvent } from '../modules/attendance/entities/attendance-event.entity';
 import { AttendanceRecord } from '../modules/attendance/entities/attendance-record.entity';
 import { RefreshToken } from '../modules/auth/entities/refresh-token.entity';
+import { Department } from '../modules/departments/entities/department.entity';
 import { LeaveRequestDay } from '../modules/leave/entities/leave-request-day.entity';
 import { LeaveRequest } from '../modules/leave/entities/leave-request.entity';
 import { EmployeeShiftAssignment } from '../modules/shifts/entities/employee-shift-assignment.entity';
@@ -15,25 +16,26 @@ import { User } from '../modules/users/entities/user.entity';
 config({ path: resolve(process.cwd(), '../../.env') });
 
 export default new DataSource({
-    type: 'postgres',
-    host: process.env.DATABASE_HOST,
-    port: Number(process.env.DATABASE_PORT ?? 5432),
-    username: process.env.DATABASE_USER,
-    password: process.env.DATABASE_PASSWORD,
-    database: process.env.DATABASE_NAME,
+  type: 'postgres',
+  host: process.env.DATABASE_HOST,
+  port: Number(process.env.DATABASE_PORT ?? 5432),
+  username: process.env.DATABASE_USER,
+  password: process.env.DATABASE_PASSWORD,
+  database: process.env.DATABASE_NAME,
 
-    entities: [
-        User,
-        RefreshToken,
-        Shift,
-        ShiftWorkPeriod,
-        EmployeeShiftAssignment,
-        AttendanceRecord,
-        AttendanceEvent,
-        LeaveRequest,
-        LeaveRequestDay,
-    ],
-    migrations: ['src/database/migrations/*.ts'],
+  entities: [
+    User,
+    RefreshToken,
+    Shift,
+    ShiftWorkPeriod,
+    Department,
+    EmployeeShiftAssignment,
+    AttendanceRecord,
+    AttendanceEvent,
+    LeaveRequest,
+    LeaveRequestDay,
+  ],
+  migrations: ['src/database/migrations/*.ts'],
 
-    synchronize: false,
+  synchronize: false,
 });

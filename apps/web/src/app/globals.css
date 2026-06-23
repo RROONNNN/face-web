@@ -1046,6 +1046,11 @@ tr:last-child td {
   opacity: 0.55;
 }
 
+.attendance-calendar-day-holiday {
+  background: oklch(0.72 0.17 350 / 12%);
+  border-color: oklch(0.72 0.17 350 / 42%);
+}
+
 .attendance-calendar-date {
   width: 28px;
   height: 28px;
@@ -1055,6 +1060,17 @@ tr:last-child td {
   background: var(--muted);
   font-size: 0.85rem;
   font-weight: 800;
+}
+
+.attendance-holiday-label {
+  display: -webkit-box;
+  overflow: hidden;
+  color: oklch(0.48 0.18 350);
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1.2;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .attendance-day-content {
@@ -1237,6 +1253,33 @@ tr:last-child td {
 .attendance-audit-empty {
   margin-bottom: 0;
   color: var(--muted-foreground);
+}
+
+.attendance-holiday-detail {
+  display: grid;
+  gap: 5px;
+  padding: 12px 14px;
+  border: 1px solid oklch(0.72 0.17 350 / 38%);
+  border-radius: 8px;
+  background: oklch(0.72 0.17 350 / 10%);
+}
+
+.attendance-holiday-detail span {
+  color: oklch(0.48 0.18 350);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.attendance-holiday-detail strong {
+  color: var(--secondary-foreground);
+  font-size: 0.95rem;
+}
+
+.attendance-holiday-detail p {
+  margin-bottom: 0;
+  color: var(--muted-foreground);
+  line-height: 1.45;
 }
 
 .attendance-manual-section {

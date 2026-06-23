@@ -134,6 +134,7 @@ export default async function EmployeeDetailPage({
           </div>
           <EmployeeAttendanceCalendar
             employeeId={user.id}
+            holidays={attendance.metaData.holidays}
             month={selectedMonth.month}
             records={attendance.items}
             returnPath={`/employees/${user.id}?month=${formatMonthParam(selectedMonth.year, selectedMonth.month)}`}

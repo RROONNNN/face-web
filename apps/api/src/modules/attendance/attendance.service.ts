@@ -8,6 +8,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { PaginatedResponse } from '../../common/interfaces/paginated-response.interface';
 import { Department } from '../departments/entities/department.entity';
+import { Holiday } from '../holidays/entities/holiday.entity';
+import { HolidaysService } from '../holidays/holidays.service';
 import { LeaveReconciliationService } from '../leave/leave-reconciliation.service';
 import { EmployeeShiftAssignment } from '../shifts/entities/employee-shift-assignment.entity';
 import { ShiftAssignmentSource } from '../shifts/enums/shift-assignment-source.enum';
@@ -36,6 +38,7 @@ export class AttendanceService {
         private readonly assignmentRepo: Repository<EmployeeShiftAssignment>,
         private readonly dataSource: DataSource,
         private readonly leaveReconciliationService: LeaveReconciliationService,
+        private readonly holidaysService: HolidaysService,
     ) { }
 
     // -------------------------------------------------------------------------
@@ -473,6 +476,7 @@ export class AttendanceService {
             leaveCount: number;
             absentCount: number;
             missingCheckOutCount: number;
+            holidays: Holiday[];
         };
     }> {
         const { employeeId, startDate, endDate } = query;
@@ -493,7 +497,10 @@ export class AttendanceService {
             qb.andWhere('record.workDate <= :endDate', { endDate });
         }
 
-        const items = await qb.getMany();
+        const [items, holidays] = await Promise.all([
+            qb.getMany(),
+            startDate ? this.holidaysService.findByMonth(startDate) : Promise.resolve([]),
+        ]);
         await this.enrichRecordsWithAuditEvents(items);
 
         const presentCount = items.filter(
@@ -505,7 +512,7 @@ export class AttendanceService {
 
         return {
             items,
-            metaData: { presentCount, leaveCount, absentCount, missingCheckOutCount },
+            metaData: { presentCount, leaveCount, absentCount, missingCheckOutCount, holidays },
         };
     }
 

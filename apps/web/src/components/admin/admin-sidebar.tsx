@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
 import type { ComponentType } from 'react';
+import { useState } from 'react';
 
 const management = [
   { href: '/dashboard', label: 'Dashboard', icon: DashboardIcon },

@@ -56,6 +56,19 @@ describe('AttendanceService', () => {
           },
         ]),
       };
+      const holidays = [
+        {
+          id: 'holiday-1',
+          date: '2026-06-25',
+          name: 'Company Holiday',
+          description: null,
+          createdAt: new Date('2026-06-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-06-01T00:00:00.000Z'),
+        },
+      ];
+      const holidaysService = {
+        findByMonth: jest.fn().mockResolvedValue(holidays),
+      };
 
       const service = new AttendanceService(
         { createQueryBuilder: jest.fn().mockReturnValue(recordQb) } as never,
@@ -63,6 +76,7 @@ describe('AttendanceService', () => {
         {} as never,
         {} as never,
         {} as never,
+        holidaysService as never,
       );
 
       const result = await service.queryByEmployee({
@@ -87,11 +101,13 @@ describe('AttendanceService', () => {
         'event.attendanceRecordId IN (:...recordIds)',
         { recordIds: ['record-1', 'record-2'] },
       );
+      expect(holidaysService.findByMonth).toHaveBeenCalledWith('2026-06-01');
       expect(result.metaData).toEqual({
         presentCount: 1,
         leaveCount: 0,
         absentCount: 1,
         missingCheckOutCount: 0,
+        holidays,
       });
       expect(result.items[0].auditCheckIn).toEqual([
         {

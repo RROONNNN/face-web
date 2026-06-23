@@ -1,24 +1,24 @@
 import {
+    BadRequestException,
     ConflictException,
     Injectable,
     NotFoundException,
-    BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import * as XLSX from 'xlsx';
 import { PaginatedResponse } from '../../common/interfaces/paginated-response.interface';
 import { CreateHolidayDto } from './dto/create-holiday.dto';
 import { QueryHolidaysDto } from './dto/query-holidays.dto';
 import { UpdateHolidayDto } from './dto/update-holiday.dto';
 import { Holiday } from './entities/holiday.entity';
-import * as XLSX from 'xlsx';
 
 @Injectable()
 export class HolidaysService {
     constructor(
         @InjectRepository(Holiday)
         private readonly holidayRepo: Repository<Holiday>,
-    ) {}
+    ) { }
 
     // -------------------------------------------------------------------------
     // CRUD
@@ -90,6 +90,22 @@ export class HolidaysService {
     async remove(id: string): Promise<void> {
         const holiday = await this.findOne(id);
         await this.holidayRepo.remove(holiday);
+    }
+
+    async findByMonth(dateInMonth: string): Promise<Holiday[]> {
+        const date = new Date(dateInMonth);
+        if (isNaN(date.getTime())) {
+            throw new BadRequestException(`Invalid date "${dateInMonth}". Expected format: YYYY-MM-DD.`);
+        }
+        const year = date.getUTCFullYear();
+        const month = date.getUTCMonth() + 1;
+
+        return this.holidayRepo
+            .createQueryBuilder('h')
+            .where('EXTRACT(YEAR FROM h.date::date) = :year', { year })
+            .andWhere('EXTRACT(MONTH FROM h.date::date) = :month', { month })
+            .orderBy('h.date', 'ASC')
+            .getMany();
     }
 
     // -------------------------------------------------------------------------
@@ -258,11 +274,11 @@ export class HolidaysService {
     private normalizeString(row: Record<string, unknown>, colName: string): string {
         const key = Object.keys(row).find((k) => k.toLowerCase() === colName.toLowerCase());
         if (!key) return '';
-        
+
         const val = row[key];
         if (typeof val === 'string') return val.trim();
         if (typeof val === 'number') return String(val).trim();
-        
+
         return '';
     }
 }

@@ -5,6 +5,7 @@ import type {
   AttendanceRecord,
   AttendanceSource,
   AuditEntry,
+  Holiday,
 } from '@/lib/api/types';
 import {
   Clock,
@@ -21,6 +22,7 @@ import { useFormStatus } from 'react-dom';
 
 type EmployeeAttendanceCalendarProps = {
   employeeId: string;
+  holidays: Holiday[];
   records: AttendanceRecord[];
   returnPath: string;
   year: number;
@@ -30,6 +32,7 @@ type EmployeeAttendanceCalendarProps = {
 type CalendarDay = {
   date: string;
   dayOfMonth: number;
+  holiday?: Holiday;
   record?: AttendanceRecord;
 };
 
@@ -37,13 +40,17 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export function EmployeeAttendanceCalendar({
   employeeId,
+  holidays,
   records,
   returnPath,
   year,
   month,
 }: EmployeeAttendanceCalendarProps) {
   const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null);
-  const days = useMemo(() => buildCalendarDays(year, month, records), [year, month, records]);
+  const days = useMemo(
+    () => buildCalendarDays(year, month, records, holidays),
+    [year, month, records, holidays],
+  );
 
   useEffect(() => {
     if (!selectedDay) return;
@@ -69,12 +76,16 @@ export function EmployeeAttendanceCalendar({
         {days.map((day, index) =>
           day ? (
             <button
-              className={`attendance-calendar-day ${getStatusClass(day.record)}`}
+              className={`attendance-calendar-day ${day.holiday ? 'attendance-calendar-day-holiday' : ''} ${getStatusClass(day.record)}`}
               key={day.date}
               onClick={() => setSelectedDay(day)}
+              title={day.holiday?.name}
               type="button"
             >
               <span className="attendance-calendar-date">{day.dayOfMonth}</span>
+              {day.holiday ? (
+                <span className="attendance-holiday-label">{day.holiday.name}</span>
+              ) : null}
               {day.record ? (
                 <DayRecordSummary record={day.record} />
               ) : (
@@ -123,6 +134,7 @@ export function EmployeeAttendanceCalendar({
               </span>
               <span>{selectedDay.record ? formatTimeRange(selectedDay.record) : 'No check-in - No check-out'}</span>
             </div>
+            {selectedDay.holiday ? <HolidayDetail holiday={selectedDay.holiday} /> : null}
             {selectedDay.record ? (
               <>
                 <AuditSection
@@ -231,6 +243,16 @@ function ManualSubmitButton({
   );
 }
 
+function HolidayDetail({ holiday }: { holiday: Holiday }) {
+  return (
+    <section className="attendance-holiday-detail">
+      <span>Holiday</span>
+      <strong>{holiday.name}</strong>
+      {holiday.description ? <p>{holiday.description}</p> : null}
+    </section>
+  );
+}
+
 function DayRecordSummary({ record }: { record: AttendanceRecord }) {
   const hasCheckInLocation = record.auditCheckIn.some(hasLocation);
 
@@ -317,8 +339,10 @@ function buildCalendarDays(
   year: number,
   month: number,
   records: AttendanceRecord[],
+  holidays: Holiday[],
 ): Array<CalendarDay | null> {
   const recordsByDate = new Map(records.map((record) => [record.workDate, record]));
+  const holidaysByDate = new Map(holidays.map((holiday) => [holiday.date, holiday]));
   const firstDay = new Date(Date.UTC(year, month - 1, 1));
   const leadingBlanks = (firstDay.getUTCDay() + 6) % 7;
   const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
@@ -329,6 +353,7 @@ function buildCalendarDays(
     days.push({
       date,
       dayOfMonth: day,
+      holiday: holidaysByDate.get(date),
       record: recordsByDate.get(date),
     });
   }

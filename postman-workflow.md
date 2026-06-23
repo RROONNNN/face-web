@@ -229,6 +229,13 @@ curl --location '{{base_url}}/holidays?page=1&limit=20&year=2026' \
 --header 'Authorization: Bearer {{accessToken}}'
 ```
 
+### 14b. Get Holidays In Month
+Fetches all holidays in the same month as the provided `dateInMonth` value.
+```bash
+curl --location '{{base_url}}/holidays/by-month?dateInMonth=2026-04-01' \
+--header 'Authorization: Bearer {{accessToken}}'
+```
+
 ---
 
 ### 15. Create Holiday

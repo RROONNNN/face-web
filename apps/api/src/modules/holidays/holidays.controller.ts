@@ -22,11 +22,16 @@ import { HolidaysService } from './holidays.service';
 
 @Controller('holidays')
 export class HolidaysController {
-    constructor(private readonly holidaysService: HolidaysService) {}
+    constructor(private readonly holidaysService: HolidaysService) { }
 
     @Get()
     findAll(@Query() query: QueryHolidaysDto) {
         return this.holidaysService.findAll(query);
+    }
+
+    @Get('by-month')
+    findByMonth(@Query('dateInMonth') dateInMonth: string) {
+        return this.holidaysService.findByMonth(dateInMonth);
     }
 
     @Get(':id')

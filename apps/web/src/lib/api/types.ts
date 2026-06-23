@@ -170,11 +170,21 @@ export type AttendanceRecord = {
   lateMinutes: number;
 };
 
+export type Holiday = {
+  id: string;
+  date: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type EmployeeAttendanceSummary = {
   presentCount: number;
   leaveCount: number;
   absentCount: number;
   missingCheckOutCount: number;
+  holidays: Holiday[];
 };
 
 export type EmployeeAttendanceData = {
