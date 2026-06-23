@@ -1,4 +1,3 @@
-import { cookies } from 'next/headers';
 import type { AuthPayload, AuthUser } from '@/lib/api/types';
 import {
   AUTH_ACCESS_COOKIE,
@@ -6,6 +5,7 @@ import {
   AUTH_ROLE_COOKIE,
   AUTH_USER_COOKIE,
 } from '@/lib/auth/cookies';
+import { cookies } from 'next/headers';
 
 const ACCESS_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24;
 const REFRESH_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
@@ -39,22 +39,26 @@ export async function getSession(): Promise<AuthSession | null> {
 export async function persistSession(payload: AuthPayload): Promise<void> {
   const cookieStore = await cookies();
 
-  cookieStore.set(AUTH_ACCESS_COOKIE, payload.accessToken, {
-    ...baseCookieOptions,
-    maxAge: ACCESS_TOKEN_MAX_AGE_SECONDS,
-  });
-  cookieStore.set(AUTH_REFRESH_COOKIE, payload.refreshToken, {
-    ...baseCookieOptions,
-    maxAge: REFRESH_TOKEN_MAX_AGE_SECONDS,
-  });
-  cookieStore.set(AUTH_USER_COOKIE, encodeUser(payload.user), {
-    ...baseCookieOptions,
-    maxAge: REFRESH_TOKEN_MAX_AGE_SECONDS,
-  });
-  cookieStore.set(AUTH_ROLE_COOKIE, payload.user.accountRole, {
-    ...baseCookieOptions,
-    maxAge: REFRESH_TOKEN_MAX_AGE_SECONDS,
-  });
+  try {
+    cookieStore.set(AUTH_ACCESS_COOKIE, payload.accessToken, {
+      ...baseCookieOptions,
+      maxAge: ACCESS_TOKEN_MAX_AGE_SECONDS,
+    });
+    cookieStore.set(AUTH_REFRESH_COOKIE, payload.refreshToken, {
+      ...baseCookieOptions,
+      maxAge: REFRESH_TOKEN_MAX_AGE_SECONDS,
+    });
+    cookieStore.set(AUTH_USER_COOKIE, encodeUser(payload.user), {
+      ...baseCookieOptions,
+      maxAge: REFRESH_TOKEN_MAX_AGE_SECONDS,
+    });
+    cookieStore.set(AUTH_ROLE_COOKIE, payload.user.accountRole, {
+      ...baseCookieOptions,
+      maxAge: REFRESH_TOKEN_MAX_AGE_SECONDS,
+    });
+  } catch {
+    // Ignore error when called from Server Component
+  }
 }
 
 export async function clearSession(): Promise<void> {
@@ -66,7 +70,11 @@ export async function clearSession(): Promise<void> {
     AUTH_USER_COOKIE,
     AUTH_ROLE_COOKIE,
   ]) {
-    cookieStore.delete(name);
+    try {
+      cookieStore.delete(name);
+    } catch {
+      // Ignore error when called from Server Component
+    }
   }
 }
 

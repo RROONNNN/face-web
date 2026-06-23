@@ -3,6 +3,15 @@ import { EmployeeShiftAssignment } from "../../shifts/entities/employee-shift-as
 import { User } from "../../users/entities/user.entity";
 import { AttendanceSource } from "../enums/attendance-source.enum";
 import { AttendanceStatus } from "../enums/attendance-status.enum";
+
+export interface AuditEntry {
+    occurredAt: Date;
+    source: AttendanceSource;
+    deviceId?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    isOutOfZone?: boolean | null;
+}
 @Entity('attendance_records')
 export class AttendanceRecord {
     @PrimaryGeneratedColumn('uuid')
@@ -47,10 +56,10 @@ export class AttendanceRecord {
     checkedOutAt?: Date | null;
 
     @Column({ name: 'audit_check_in', type: 'json', default: [] })
-    auditCheckIn!: Date[];
+    auditCheckIn!: AuditEntry[];
 
     @Column({ name: 'audit_check_out', type: 'json', default: [] })
-    auditCheckOut!: Date[];
+    auditCheckOut!: AuditEntry[];
 
     @Column({
         name: 'check_in_source',

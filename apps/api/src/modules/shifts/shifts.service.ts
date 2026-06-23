@@ -375,6 +375,7 @@ export class ShiftsService {
     ): Promise<PaginatedResponse<EmployeeShiftAssignment>> {
         const {
             employeeId,
+            employeeSearch,
             shiftId,
             workDate,
             dateFrom,
@@ -397,6 +398,12 @@ export class ShiftsService {
 
         if (employeeId) {
             qb.andWhere('assignment.employeeId = :employeeId', { employeeId });
+        }
+        if (employeeSearch) {
+            qb.andWhere(
+                '(LOWER(employee.name) LIKE LOWER(:employeeSearch) OR LOWER(employee.employeeCode) LIKE LOWER(:employeeSearch))',
+                { employeeSearch: `%${employeeSearch}%` },
+            );
         }
         if (shiftId) {
             qb.andWhere('assignment.shiftId = :shiftId', { shiftId });

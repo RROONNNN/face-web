@@ -1,9 +1,10 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
     IsDateString,
     IsIn,
     IsInt,
     IsOptional,
+    IsString,
     IsUUID,
     Min,
 } from 'class-validator';
@@ -26,6 +27,12 @@ export class QueryShiftAssignmentsDto {
     @IsOptional()
     @IsUUID()
     employeeId?: string;
+
+    /** Search by employee name or code (case-insensitive, partial match). */
+    @IsOptional()
+    @Transform(({ value }) => String(value).trim())
+    @IsString()
+    employeeSearch?: string;
 
     /** Filter by shift ID. */
     @IsOptional()

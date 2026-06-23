@@ -37,7 +37,7 @@ export async function loginAction(
   }
 
   await persistSession(payload);
-  redirect('/dashboard');
+  redirect('/employees');
 }
 
 export async function logoutAction(): Promise<void> {

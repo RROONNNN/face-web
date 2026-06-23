@@ -1,19 +1,8 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
+import { AdminSidebar } from '@/components/admin/admin-sidebar';
 import { logoutAction } from '@/lib/auth/actions';
 import { getSession } from '@/lib/auth/session';
-
-const navigationItems = [
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/employees', label: 'Employees' },
-  { href: '/departments', label: 'Departments' },
-  { href: '/shifts', label: 'Shifts' },
-  { href: '/shift-assignments', label: 'Assignments' },
-  { href: '/attendance', label: 'Attendance' },
-  { href: '/leave-requests', label: 'Leave' },
-  { href: '/holidays', label: 'Holidays' },
-];
 
 export default async function AdminLayout({
   children,
@@ -28,20 +17,7 @@ export default async function AdminLayout({
 
   return (
     <div className="admin-shell">
-      <aside className="admin-sidebar" aria-label="Admin navigation">
-        <div>
-          <p className="sidebar-kicker">Face Web</p>
-          <h2>Admin</h2>
-        </div>
-
-        <nav className="admin-nav">
-          {navigationItems.map((item) => (
-            <Link href={item.href} key={item.href}>
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      </aside>
+      <AdminSidebar userName={session.user.name} employeeCode={session.user.employeeCode} />
 
       <div className="admin-main">
         <header className="admin-topbar">

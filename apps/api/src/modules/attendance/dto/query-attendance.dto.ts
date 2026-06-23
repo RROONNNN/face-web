@@ -26,4 +26,15 @@ export class QueryAttendanceDto {
   @IsInt()
   @Min(1)
   limit = 20;
+  @IsOptional()
+  @Type(() => Boolean)
+  shouldShowPending?: boolean;
+
+  @IsOptional()
+  @IsDateString({ strict: false })
+  startDate?: string;
+
+  @IsOptional()
+  @IsDateString({ strict: false })
+  endDate?: string;
 }

@@ -9,6 +9,7 @@ import { AdminCheckOutDto } from './dto/admin-check-out.dto';
 import { CheckInDto } from './dto/check-in.dto';
 import { CheckOutDto } from './dto/check-out.dto';
 import { QueryAttendanceDto } from './dto/query-attendance.dto';
+import { QueryByEmployeeAttendanceDto } from './dto/query-by-employee-attendance.dto';
 import { SyncCheckInDto, SyncCheckOutDto } from './dto/sync-event.dto';
 
 @Controller('attendance')
@@ -62,5 +63,10 @@ export class AttendanceController {
     @AccountRoles([AccountRole.Admin])
     finalizeDay(@Body('workDate') workDate: string) {
         return this.attendanceService.finalizeEndOfDayForDate(workDate);
+    }
+    @Get('query-by-employee')
+    @AccountRoles([AccountRole.Admin])
+    queryByEmployee(@Query() query: QueryByEmployeeAttendanceDto) {
+        return this.attendanceService.queryByEmployee(query);
     }
 }

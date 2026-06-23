@@ -1,4 +1,6 @@
 export type AccountRole = 'admin' | 'employee';
+export type SortOrder = 'ASC' | 'DESC';
+export type ShiftAssignmentSource = 'department_default' | 'admin_manual';
 
 export type ApiSuccessEnvelope<T> = {
   success: true;
@@ -44,4 +46,167 @@ export type PaginationMeta = {
 export type PaginatedData<T> = {
   items: T[];
   meta: PaginationMeta;
+};
+
+export type User = {
+  id: string;
+  employeeCode: string;
+  name: string;
+  accountRole: AccountRole;
+  isActive: boolean;
+  department: string | null;
+  departmentId: string | null;
+  jobTitle: string | null;
+  phone: string | null;
+  email: string | null;
+  dateOfBirth: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ShiftWorkPeriod = {
+  id?: string;
+  shiftId?: string;
+  name: string;
+  startTime: string;
+  endTime: string;
+  isCrossMidnight: boolean;
+};
+
+export type Shift = {
+  id: string;
+  name: string;
+  lateGraceMinutes: number;
+  flexibleWindowMinutes?: number;
+  isActive: boolean;
+  workPeriods: ShiftWorkPeriod[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Department = {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  defaultShiftId: string;
+  defaultShift?: Shift;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ShiftAssignment = {
+  id: string;
+  employeeId: string;
+  employee?: User;
+  shiftId: string;
+  shift?: Shift;
+  workDate: string;
+  source: ShiftAssignmentSource;
+  assignedByUserId?: string | null;
+  assignedByUser?: User | null;
+  note?: string | null;
+  leaveShiftWorkPeriodIds?: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AttendanceSource =
+  | 'mobile_face_recognition'
+  | 'admin_manual'
+  | 'fingerprint_device';
+
+export type AttendanceStatus =
+  | 'pending'
+  | 'checked_in'
+  | 'completed'
+  | 'missing_check_out'
+  | 'absent'
+  | 'on_leave'
+  | 'invalid';
+
+export type AttendanceEventType = 'check_in' | 'check_out';
+
+export type AttendanceEvent = {
+  id: string;
+  attendanceRecordId: string;
+  type: AttendanceEventType;
+  occurredAt: string;
+  source: AttendanceSource;
+  faceSimilarity?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  isOutOfZone?: boolean | null;
+  deviceId?: string | null;
+  createdAt: string;
+};
+
+export type AuditEntry = {
+  occurredAt: string;
+  source: AttendanceSource;
+  deviceId?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  isOutOfZone?: boolean | null;
+};
+
+export type AttendanceRecord = {
+  id: string;
+  employeeId: string;
+  employee?: User;
+  shiftAssignmentId: string;
+  shiftAssignment?: ShiftAssignment;
+  workDate: string;
+  status: AttendanceStatus;
+  expectedCheckInAt: string;
+  expectedCheckOutAt: string;
+  checkedInAt?: string | null;
+  checkedOutAt?: string | null;
+  auditCheckIn: AuditEntry[];
+  auditCheckOut: AuditEntry[];
+  checkInSource?: AttendanceSource | null;
+  checkOutSource?: AttendanceSource | null;
+  lateMinutes: number;
+};
+
+export type EmployeeAttendanceSummary = {
+  presentCount: number;
+  leaveCount: number;
+  absentCount: number;
+  missingCheckOutCount: number;
+};
+
+export type EmployeeAttendanceData = {
+  items: AttendanceRecord[];
+  metaData: EmployeeAttendanceSummary;
+};
+
+export type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+
+export type LeaveRequestDay = {
+  id: string;
+  leaveRequestId: string;
+  date: string;
+  isPartialDay: boolean;
+  departmentShiftId: string;
+  shiftWorkPeriodId?: string | null;
+};
+
+export type LeaveRequest = {
+  id: string;
+  employeeId: string;
+  employee?: User;
+  startDate: string;
+  endDate: string;
+  reason: string;
+  status: LeaveStatus;
+  reviewedById?: string | null;
+  reviewedBy?: User | null;
+  reviewedAt?: string | null;
+  rejectionReason?: string | null;
+  cancelledAt?: string | null;
+  days: LeaveRequestDay[];
+  createdAt: string;
+  updatedAt: string;
 };

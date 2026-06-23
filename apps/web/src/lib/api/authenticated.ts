@@ -1,6 +1,7 @@
 import { apiFetch, ApiRequestError } from '@/lib/api/client';
 import { refreshSession } from '@/lib/auth/refresh';
 import { getSession } from '@/lib/auth/session';
+import { redirect } from 'next/navigation';
 
 type AuthenticatedApiOptions = Omit<Parameters<typeof apiFetch>[1], 'accessToken'>;
 
@@ -27,7 +28,7 @@ export async function authenticatedApiFetch<T>(
     const refreshed = await refreshSession();
 
     if (!refreshed) {
-      throw error;
+      redirect('/login');
     }
 
     return apiFetch<T>(path, {

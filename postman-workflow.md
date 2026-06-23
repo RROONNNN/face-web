@@ -278,6 +278,15 @@ curl --location '{{base_url}}/holidays/import' \
 
 ---
 
+### 8b. Query Attendance by Employee
+Returns records for a specific employee with summary counts (present, leave, absent, missing check-out). All params optional.
+```bash
+curl --location '{{base_url}}/attendance/query-by-employee?employeeId={{EMPLOYEE_ID}}&startDate=2026-06-01&endDate=2026-06-23' \
+--header 'Authorization: Bearer {{accessToken}}'
+```
+
+---
+
 ## Leave Request Workflow
 
 Leave dates must be today or later. Partial leave also requires an existing shift assignment for that date, and `WORK_PERIOD_ID` must belong to the assigned shift. Use separate pending requests for approve, reject, and cancel because each transition is terminal.
