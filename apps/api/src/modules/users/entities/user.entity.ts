@@ -24,7 +24,7 @@ export class User {
     @Column({ name: 'is_active', default: true })
     isActive!: boolean;
 
-    @Column({ type: 'varchar', length: 120, nullable: true })
+    @Column({ type: 'varchar', length: 120 })
     department!: string | null;
 
     /**

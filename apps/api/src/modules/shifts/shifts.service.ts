@@ -9,7 +9,7 @@ import { DataSource, Repository } from 'typeorm';
 import { PaginatedResponse } from '../../common/interfaces/paginated-response.interface';
 import { TimeUtil } from '../../common/utils/time.util';
 import { AttendanceRecord } from '../attendance/entities/attendance-record.entity';
-import { AttendanceStatus } from '../attendance/enums/attendance-status.enum';
+import { LeaveReconciliationService } from '../leave/leave-reconciliation.service';
 import { User } from '../users/entities/user.entity';
 import { CreateShiftDto } from './dto/create-shift.dto';
 import { QueryShiftAssignmentsDto } from './dto/query-shift-assignments.dto';
@@ -36,6 +36,7 @@ export class ShiftsService {
         @InjectRepository(User)
         private readonly userRepository: Repository<User>,
         private readonly dataSource: DataSource,
+        private readonly leaveReconciliationService: LeaveReconciliationService,
     ) {
     }
     async findAllShifts(query: QueryShiftsDto): Promise<PaginatedResponse<Shift>> {
@@ -289,10 +290,9 @@ export class ShiftsService {
      * Logic:
      * 1. Validate employee exists.
      * 2. Validate shift exists and is active.
-     * 3. Validate leaveShiftWorkPeriodIds (if provided) belong to the target shift.
+     * 3. Map approved leave periods onto the target shift.
      * 4. Upsert the assignment row (source = admin_manual).
-     * 5. If an AttendanceRecord exists for this assignment and is still PENDING,
-     *    recalculate expectedCheckInAt/expectedCheckOutAt from the new shift.
+     * 5. Reconcile the persisted attendance record.
      */
     async upsertAssignment(
         dto: UpsertShiftAssignmentDto,
@@ -306,7 +306,6 @@ export class ShiftsService {
             const shiftRepo = manager.getRepository(Shift);
             const workPeriodRepo = manager.getRepository(ShiftWorkPeriod);
             const assignmentRepo = manager.getRepository(EmployeeShiftAssignment);
-            const recordRepo = manager.getRepository(AttendanceRecord);
 
             // 1. Validate employee
             const employee = await userRepo.findOne({ where: { id: dto.employeeId } });
@@ -325,18 +324,16 @@ export class ShiftsService {
                 );
             }
 
-            // 3. Validate leaveShiftWorkPeriodIds
-            const leaveIds = dto.leaveShiftWorkPeriodIds ?? [];
-            if (leaveIds.length > 0) {
-                const workPeriods = await workPeriodRepo.find({ where: { shiftId: dto.shiftId } });
-                const validIds = new Set(workPeriods.map((p) => p.id));
-                const invalidIds = leaveIds.filter((id) => !validIds.has(id));
-                if (invalidIds.length > 0) {
-                    throw new BadRequestException(
-                        `leaveShiftWorkPeriodIds contains IDs that do not belong to shift "${shift.name}": ${invalidIds.join(', ')}`,
-                    );
-                }
-            }
+            // 3. Approved leave is the only source of leave period IDs.
+            const workPeriods = await workPeriodRepo.find({
+                where: { shiftId: dto.shiftId },
+            });
+            const leaveIds = await this.leaveReconciliationService.resolveLeavePeriodIds(
+                manager,
+                dto.employeeId,
+                dto.workDate,
+                workPeriods,
+            );
 
             // 4. Upsert assignment
             await assignmentRepo
@@ -363,30 +360,8 @@ export class ShiftsService {
                 relations: { shift: { workPeriods: true }, assignedByUser: true },
             });
 
-            // 5. Recalculate AttendanceRecord expected times if PENDING
-            const record = await recordRepo.findOne({
-                where: { shiftAssignmentId: assignment.id, status: AttendanceStatus.PENDING },
-            });
-
-            if (record) {
-                const workPeriods = await workPeriodRepo.find({ where: { shiftId: dto.shiftId } });
-                const activePeriods = workPeriods
-                    .filter((p) => !leaveIds.includes(p.id))
-                    .sort((a, b) => a.startTime.localeCompare(b.startTime));
-
-                if (activePeriods.length === 0) {
-                    throw new BadRequestException(
-                        'No active work periods remaining after applying leave periods.',
-                    );
-                }
-
-                const appTzOffset = process.env['APP_TZ_OFFSET'] ?? '+07:00';
-                const buildTs = (time: string) => new Date(`${dto.workDate}T${time}:00${appTzOffset}`);
-
-                record.expectedCheckInAt = buildTs(activePeriods[0].startTime);
-                record.expectedCheckOutAt = buildTs(activePeriods[activePeriods.length - 1].endTime);
-                await recordRepo.save(record);
-            }
+            // 5. Create or update the attendance record from the approved leave state.
+            await this.leaveReconciliationService.reconcileAssignment(manager, assignment);
 
             return assignment;
         });

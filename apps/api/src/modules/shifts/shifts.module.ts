@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AttendanceRecord } from '../attendance/entities/attendance-record.entity';
+import { LeaveModule } from '../leave/leave.module';
 import { User } from '../users/entities/user.entity';
 import { EmployeeShiftAssignment } from './entities/employee-shift-assignment.entity';
 import { ShiftWorkPeriod } from './entities/shift-work-period.entity';
@@ -10,7 +11,10 @@ import { ShiftsController } from './shifts.controller';
 import { ShiftsService } from './shifts.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Shift, ShiftWorkPeriod, EmployeeShiftAssignment, AttendanceRecord, User])],
+  imports: [
+    TypeOrmModule.forFeature([Shift, ShiftWorkPeriod, EmployeeShiftAssignment, AttendanceRecord, User]),
+    LeaveModule,
+  ],
   providers: [ShiftsService, ShiftAssignmentSchedulerService],
   controllers: [ShiftsController]
 })

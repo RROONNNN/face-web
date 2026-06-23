@@ -73,17 +73,22 @@ export class ShiftsController {
     }
 
     /**
-     * Manually trigger department_default assignment generation for a given date.
+     * Manually trigger department_default assignment generation for a date range.
      *
-     * @query workDate  YYYY-MM-DD — defaults to tomorrow (same as the nightly cron).
+     * @query startDate  YYYY-MM-DD — start of range (inclusive), defaults to tomorrow.
+     * @query endDate    YYYY-MM-DD — end of range (inclusive), defaults to startDate.
      *
      * @example POST /shifts/assignments/generate
-     * @example POST /shifts/assignments/generate?workDate=2026-06-24
+     * @example POST /shifts/assignments/generate?startDate=2026-06-24&endDate=2026-06-30
      */
     @Post('assignments/generate')
-    generateAssignments(@Query('workDate') workDate?: string) {
-        return this.schedulerService.generateForDate(
-            workDate ?? this.schedulerService.tomorrowWorkDate(),
-        );
+    generateAssignments(
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string,
+        @Query('employeeId') employeeId?: string,
+    ) {
+        const start = startDate ?? this.schedulerService.tomorrowWorkDate();
+        const end = endDate ?? start;
+        return this.schedulerService.generateForDates(start, end, employeeId);
     }
 }

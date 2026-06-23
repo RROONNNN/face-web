@@ -1,0 +1,85 @@
+{
+    "success": true,
+    "data": {
+        "id": "3896c83e-7777-4924-9882-c2c807c57d3e",
+        "employeeId": "311dd4e7-a30a-4f75-9753-5a22e4ee6abf",
+        "shiftAssignmentId": "993ca271-59ea-4077-a1a0-fdac77c66dd3",
+        "workDate": "2026-07-02",
+        "status": "checked_in",
+        "expectedCheckInAt": "2026-07-02T06:00:00.000Z",
+        "expectedCheckOutAt": "2026-07-02T10:00:00.000Z",
+        "checkedInAt": "2026-07-02T05:15:00.000Z",
+        "checkedOutAt": null,
+        "auditCheckIn": [
+            "2026-07-02T05:15:00.000Z"
+        ],
+        "auditCheckOut": [],
+        "checkInSource": "mobile_face_recognition",
+        "checkOutSource": null,
+        "lateMinutes": -45
+    },
+    "timestamp": "2026-06-23T04:47:27.578Z"
+}
+
+{
+    "success": true,
+    "data": {
+        "items": [
+            {
+                "id": "3896c83e-7777-4924-9882-c2c807c57d3e",
+                "employee": {
+                    "id": "311dd4e7-a30a-4f75-9753-5a22e4ee6abf",
+                    "employeeCode": "EMP19950815",
+                    "name": "Jane Doe",
+                    "passwordHash": "$2b$10$XL2.E7HWGWJWlxasV3qP7.0.hCkxvVFfVG0gLZVMOakDpHVyrBa9q",
+                    "accountRole": "employee",
+                    "isActive": true,
+                    "department": "Engineering Team Alpha",
+                    "departmentId": "cc1759bc-7fc7-47eb-bd66-3793f10d995d",
+                    "jobTitle": null,
+                    "phone": null,
+                    "email": null,
+                    "dateOfBirth": "1995-08-15",
+                    "createdAt": "2026-06-22T17:43:43.740Z",
+                    "updatedAt": "2026-06-22T17:43:43.740Z"
+                },
+                "employeeId": "311dd4e7-a30a-4f75-9753-5a22e4ee6abf",
+                "shiftAssignment": {
+                    "id": "993ca271-59ea-4077-a1a0-fdac77c66dd3",
+                    "employeeId": "311dd4e7-a30a-4f75-9753-5a22e4ee6abf",
+                    "shiftId": "7ed8977a-a257-4e24-8c64-de94a1088085",
+                    "workDate": "2026-07-02",
+                    "source": "department_default",
+                    "assignedByUserId": "c73a0c29-9c7b-459e-a99a-a2be312591a9",
+                    "note": null,
+                    "leaveShiftWorkPeriodIds": [
+                        "7fc20941-2480-4946-b04a-c3e8416f3295"
+                    ],
+                    "createdAt": "2026-06-22T21:03:10.091Z",
+                    "updatedAt": "2026-06-22T21:03:10.091Z"
+                },
+                "shiftAssignmentId": "993ca271-59ea-4077-a1a0-fdac77c66dd3",
+                "workDate": "2026-07-02",
+                "status": "checked_in",
+                "expectedCheckInAt": "2026-07-02T06:00:00.000Z",
+                "expectedCheckOutAt": "2026-07-02T10:00:00.000Z",
+                "checkedInAt": "2026-07-02T05:15:00.000Z",
+                "checkedOutAt": null,
+                "auditCheckIn": [
+                    "2026-07-02T05:15:00.000Z"
+                ],
+                "auditCheckOut": [],
+                "checkInSource": "mobile_face_recognition",
+                "checkOutSource": null,
+                "lateMinutes": -45
+            }
+        ],
+        "meta": {
+            "page": 1,
+            "limit": 20,
+            "total": 1,
+            "totalPages": 1
+        }
+    },
+    "timestamp": "2026-06-23T04:48:55.039Z"
+}

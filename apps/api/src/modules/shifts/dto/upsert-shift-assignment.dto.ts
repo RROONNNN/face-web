@@ -1,5 +1,4 @@
 import {
-    IsArray,
     IsDateString,
     IsOptional,
     IsString,
@@ -27,12 +26,4 @@ export class UpsertShiftAssignmentDto {
     @IsString()
     note?: string;
 
-    /**
-     * Work period IDs within the assigned shift that the employee is on leave for.
-     * These periods are excluded when calculating expectedCheckIn/Out.
-     */
-    @IsOptional()
-    @IsArray()
-    @IsUUID('4', { each: true })
-    leaveShiftWorkPeriodIds?: string[];
 }

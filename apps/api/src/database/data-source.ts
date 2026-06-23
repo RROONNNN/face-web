@@ -5,6 +5,8 @@ import { DataSource } from 'typeorm';
 import { AttendanceEvent } from '../modules/attendance/entities/attendance-event.entity';
 import { AttendanceRecord } from '../modules/attendance/entities/attendance-record.entity';
 import { RefreshToken } from '../modules/auth/entities/refresh-token.entity';
+import { LeaveRequestDay } from '../modules/leave/entities/leave-request-day.entity';
+import { LeaveRequest } from '../modules/leave/entities/leave-request.entity';
 import { EmployeeShiftAssignment } from '../modules/shifts/entities/employee-shift-assignment.entity';
 import { ShiftWorkPeriod } from '../modules/shifts/entities/shift-work-period.entity';
 import { Shift } from '../modules/shifts/entities/shift.entity';
@@ -28,6 +30,8 @@ export default new DataSource({
         EmployeeShiftAssignment,
         AttendanceRecord,
         AttendanceEvent,
+        LeaveRequest,
+        LeaveRequestDay,
     ],
     migrations: ['src/database/migrations/*.ts'],
 

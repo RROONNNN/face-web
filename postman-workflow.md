@@ -5,8 +5,13 @@ Here is the complete sequence of `curl` commands to test the full lifecycle of t
 **Postman Variables Used:**
 - `{{base_url}}` - The base URL of the API
 - `{{accessToken}}` - The JWT access token (usually from the admin login)
+- `{{employeeAccessToken}}` - The JWT access token returned by employee login
 - `{{DEPARTMENT_ID}}` - The UUID of the department
 - `{{EMPLOYEE_ID}}` - The UUID of the generated employee
+- `{{WORK_PERIOD_ID}}` - A work-period UUID from the employee's shift assignment
+- `{{LEAVE_ID}}` - A leave-request UUID used for lookup and approval
+- `{{REJECT_LEAVE_ID}}` - A separate pending leave-request UUID used for rejection
+- `{{CANCEL_LEAVE_ID}}` - A separate pending leave-request UUID used for cancellation
 
 ---
 
@@ -70,9 +75,14 @@ curl --location '{{base_url}}/auth/register' \
 ---
 
 ### 4. Generate Default Assignments
-Generates the assignments based on the employee's department's default shift. By passing today's date, you can test check-ins immediately.
+Generates assignments based on each employee's department default shift. Use `startDate`/`endDate` for a date range. Pass `employeeId` to generate only for a single employee.
 ```bash
-curl --location --request POST '{{base_url}}/shifts/assignments/generate?workDate=2026-06-23' \
+# All employees, single date
+curl --location --request POST '{{base_url}}/shifts/assignments/generate?startDate=2026-06-23&endDate=2026-06-23' \
+--header 'Authorization: Bearer {{accessToken}}'
+
+# Single employee, single date
+curl --location --request POST '{{base_url}}/shifts/assignments/generate?startDate=2026-06-23&endDate=2026-06-23&employeeId={{EMPLOYEE_ID}}' \
 --header 'Authorization: Bearer {{accessToken}}'
 ```
 
@@ -210,3 +220,199 @@ curl --location '{{base_url}}/attendance/admin/finalize-day' \
 }'
 ```
 
+---
+
+### 14. List Holidays
+Fetches a paginated list of holidays. You can filter by `year` and `search`.
+```bash
+curl --location '{{base_url}}/holidays?page=1&limit=20&year=2026' \
+--header 'Authorization: Bearer {{accessToken}}'
+```
+
+---
+
+### 15. Create Holiday
+Admin creates a single holiday entry.
+```bash
+curl --location '{{base_url}}/holidays' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Bearer {{accessToken}}' \
+--data '{
+    "date": "2026-04-30",
+    "name": "Reunification Day",
+    "description": "Ngày Giải phóng miền Nam"
+}'
+```
+*(Copy the `id` from the created holiday response to test update/delete)*
+
+---
+
+### 16. Update Holiday
+Updates an existing holiday by its UUID.
+```bash
+curl --location --request PATCH '{{base_url}}/holidays/<holiday-uuid>' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Bearer {{accessToken}}' \
+--data '{
+    "name": "Updated Reunification Day"
+}'
+```
+---
+
+### 17. Delete Holiday
+Deletes a holiday by its UUID.
+```bash
+curl --location --request DELETE '{{base_url}}/holidays/<holiday-uuid>' \
+--header 'Authorization: Bearer {{accessToken}}'
+```
+
+---
+
+### 18. Import Holidays (Excel)
+Uploads an `.xlsx` file to bulk insert or update holidays. In Postman, switch this to `form-data` and select your file for the `file` key.
+```bash
+curl --location '{{base_url}}/holidays/import' \
+--header 'Authorization: Bearer {{accessToken}}' \
+--form 'file=@"/Users/mac/thuan/face-web/apps/api/holidays-2026.xlsx"'
+```
+
+---
+
+## Leave Request Workflow
+
+Leave dates must be today or later. Partial leave also requires an existing shift assignment for that date, and `WORK_PERIOD_ID` must belong to the assigned shift. Use separate pending requests for approve, reject, and cancel because each transition is terminal.
+
+### 19. Login as Employee
+
+Use the employee code returned by the registration workflow. Store the returned `data.accessToken` as `{{employeeAccessToken}}`.
+
+```bash
+curl --location '{{base_url}}/auth/login' \
+--header 'Content-Type: application/json' \
+--data '{
+    "employeeCode": "EMPLOYEE_CODE_HERE",
+    "password": "password123"
+}'
+```
+
+### 20. Create Leave Request
+
+This example requests full-day leave on July 1 and partial leave on July 2. Dates without a `partialDays` entry are treated as full-day leave. Store the returned `data.id` as `{{LEAVE_ID}}`.
+
+```bash
+curl --location '{{base_url}}/leave' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Bearer {{employeeAccessToken}}' \
+--data '{
+    "startDate": "2026-07-01",
+    "endDate": "2026-07-02",
+    "reason": "Personal appointment",
+    "partialDays": [
+        {
+            "workDate": "2026-07-02",
+            "workPeriodIds": ["{{WORK_PERIOD_ID}}"]
+        }
+    ]
+}'
+```
+
+For a full-day-only request, omit `partialDays`:
+
+```bash
+curl --location '{{base_url}}/leave' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Bearer {{employeeAccessToken}}' \
+--data '{
+    "startDate": "2026-07-03",
+    "endDate": "2026-07-03",
+    "reason": "Family matter"
+}'
+```
+
+### 21. Find My Leave Requests
+
+Employee-only endpoint. Supported filters are `status`, `fromDate`, `toDate`, `page`, and `limit`.
+
+```bash
+curl --location '{{base_url}}/leave/me?status=pending&fromDate=2026-07-01&toDate=2026-07-31&page=1&limit=20' \
+--header 'Authorization: Bearer {{employeeAccessToken}}'
+```
+
+### 22. Find All Leave Requests
+
+Admin-only endpoint. It supports `employeeId` in addition to the employee-list filters.
+
+```bash
+curl --location '{{base_url}}/leave?employeeId={{EMPLOYEE_ID}}&status=pending&fromDate=2026-07-01&toDate=2026-07-31&page=1&limit=20' \
+--header 'Authorization: Bearer {{accessToken}}'
+```
+
+### 23. Find Leave Request by ID
+
+Admins can retrieve any request. Employees can retrieve only their own request.
+
+```bash
+curl --location '{{base_url}}/leave/{{LEAVE_ID}}' \
+--header 'Authorization: Bearer {{employeeAccessToken}}'
+```
+
+### 24. Approve Leave Request
+
+Admin-only. Approval is allowed only while the request is pending and no attendance events exist on an affected assigned date.
+
+```bash
+curl --location --request PUT '{{base_url}}/leave/{{LEAVE_ID}}/approve' \
+--header 'Authorization: Bearer {{accessToken}}'
+```
+
+### 25. Create a Request for Rejection
+
+Create another pending request and store its returned `data.id` as `{{REJECT_LEAVE_ID}}`.
+
+```bash
+curl --location '{{base_url}}/leave' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Bearer {{employeeAccessToken}}' \
+--data '{
+    "startDate": "2026-07-06",
+    "endDate": "2026-07-06",
+    "reason": "Request used to test rejection"
+}'
+```
+
+### 26. Reject Leave Request
+
+Admin-only. A non-empty rejection reason is required.
+
+```bash
+curl --location --request PUT '{{base_url}}/leave/{{REJECT_LEAVE_ID}}/reject' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Bearer {{accessToken}}' \
+--data '{
+    "reason": "Insufficient staffing for the requested date"
+}'
+```
+
+### 27. Create a Request for Cancellation
+
+Create a third pending request and store its returned `data.id` as `{{CANCEL_LEAVE_ID}}`.
+
+```bash
+curl --location '{{base_url}}/leave' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Bearer {{employeeAccessToken}}' \
+--data '{
+    "startDate": "2026-07-07",
+    "endDate": "2026-07-07",
+    "reason": "Request used to test cancellation"
+}'
+```
+
+### 28. Cancel My Leave Request
+
+Employee-only. Employees can cancel only their own pending requests.
+
+```bash
+curl --location --request PUT '{{base_url}}/leave/{{CANCEL_LEAVE_ID}}/cancel' \
+--header 'Authorization: Bearer {{employeeAccessToken}}'
+```

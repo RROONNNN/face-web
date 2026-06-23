@@ -7,8 +7,8 @@ import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { PaginatedResponse } from '../../common/interfaces/paginated-response.interface';
+import { LeaveReconciliationService } from '../leave/leave-reconciliation.service';
 import { EmployeeShiftAssignment } from '../shifts/entities/employee-shift-assignment.entity';
-import { ShiftWorkPeriod } from '../shifts/entities/shift-work-period.entity';
 import { AdminCheckInDto } from './dto/admin-check-in.dto';
 import { AdminCheckOutDto } from './dto/admin-check-out.dto';
 import { CheckInDto } from './dto/check-in.dto';
@@ -30,9 +30,8 @@ export class AttendanceService {
         private readonly eventRepo: Repository<AttendanceEvent>,
         @InjectRepository(EmployeeShiftAssignment)
         private readonly assignmentRepo: Repository<EmployeeShiftAssignment>,
-        @InjectRepository(ShiftWorkPeriod)
-        private readonly workPeriodRepo: Repository<ShiftWorkPeriod>,
         private readonly dataSource: DataSource,
+        private readonly leaveReconciliationService: LeaveReconciliationService,
     ) { }
 
     // -------------------------------------------------------------------------
@@ -41,10 +40,6 @@ export class AttendanceService {
 
     private get appTimezone(): string {
         return process.env['APP_TIMEZONE'] ?? 'Asia/Ho_Chi_Minh';
-    }
-
-    private get appTzOffset(): string {
-        return process.env['APP_TZ_OFFSET'] ?? '+07:00';
     }
 
     /** Convert an ISO 8601 string to local YYYY-MM-DD work date */
@@ -59,49 +54,6 @@ export class AttendanceService {
         return new Intl.DateTimeFormat('sv-SE', {
             timeZone: this.appTimezone,
         }).format(new Date());
-    }
-
-    /**
-     * Combine a YYYY-MM-DD workDate and a HH:mm time string into a Date.
-     * Interprets the time in the configured timezone offset.
-     * e.g. workDate="2026-06-23", time="08:00:00"
-     */
-    private buildTimestamptz(workDate: string, time: string): Date {
-        try {
-            return new Date(`${workDate}T${time}${this.appTzOffset}`);
-        } catch (error) {
-            throw new BadRequestException(
-                `Failed to build timestamp: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            );
-        }
-    }
-
-    /**
-     * Compute expected check-in / check-out times for a shift assignment.
-     * Work periods in leaveShiftWorkPeriodIds are excluded.
-     */
-    private calculateExpectedTimes(
-        workDate: string,
-        workPeriods: ShiftWorkPeriod[],
-        leaveShiftWorkPeriodIds: string[],
-    ): { expectedCheckInAt: Date; expectedCheckOutAt: Date } {
-        const activePeriods = workPeriods
-            .filter((p) => !leaveShiftWorkPeriodIds.includes(p.id))
-            .sort((a, b) => a.startTime.localeCompare(b.startTime));
-
-        if (activePeriods.length === 0) {
-            throw new BadRequestException(
-                'No active work periods remaining after applying leave periods.',
-            );
-        }
-
-        const first = activePeriods[0];
-        const last = activePeriods[activePeriods.length - 1];
-
-        return {
-            expectedCheckInAt: this.buildTimestamptz(workDate, first.startTime),
-            expectedCheckOutAt: this.buildTimestamptz(workDate, last.endTime),
-        };
     }
 
     /** Compute lateMinutes from actual check-in vs expected, after grace period */
@@ -150,33 +102,10 @@ export class AttendanceService {
             );
         }
 
-        let record = await recordRepo.findOne({
+        await this.leaveReconciliationService.reconcileAssignment(manager, assignment);
+        const record = await recordRepo.findOneOrFail({
             where: { shiftAssignmentId: assignment.id },
         });
-
-        if (!record) {
-            const workPeriods = await manager.getRepository(ShiftWorkPeriod).find({
-                where: { shiftId: assignment.shiftId },
-            });
-            const { expectedCheckInAt, expectedCheckOutAt } = this.calculateExpectedTimes(
-                workDate,
-                workPeriods,
-                assignment.leaveShiftWorkPeriodIds ?? [],
-            );
-            record = await recordRepo.save(
-                recordRepo.create({
-                    employeeId: assignment.employeeId,
-                    shiftAssignmentId: assignment.id,
-                    workDate,
-                    status: AttendanceStatus.PENDING,
-                    expectedCheckInAt,
-                    expectedCheckOutAt,
-                    lateMinutes: 0,
-                    auditCheckIn: [],
-                    auditCheckOut: [],
-                }),
-            );
-        }
 
         return { assignment, record };
     }
@@ -220,6 +149,11 @@ export class AttendanceService {
             const eventRepo = manager.getRepository(AttendanceEvent);
 
             const { assignment, record } = await this.resolveOrCreateRecord(dto.employeeId, workDate, manager);
+            await this.leaveReconciliationService.assertAttendanceEventAllowed(
+                manager,
+                assignment,
+                occurredAt,
+            );
 
             await eventRepo.save(
                 this.createEvent(record.id, AttendanceEventType.CHECK_IN, occurredAt, dto.source, dto),
@@ -250,7 +184,12 @@ export class AttendanceService {
             const recordRepo = manager.getRepository(AttendanceRecord);
             const eventRepo = manager.getRepository(AttendanceEvent);
 
-            const { record } = await this.resolveOrCreateRecord(dto.employeeId, workDate, manager);
+            const { assignment, record } = await this.resolveOrCreateRecord(dto.employeeId, workDate, manager);
+            await this.leaveReconciliationService.assertAttendanceEventAllowed(
+                manager,
+                assignment,
+                occurredAt,
+            );
 
             if (record.status !== AttendanceStatus.CHECKED_IN && record.status !== AttendanceStatus.COMPLETED) {
                 throw new BadRequestException(
@@ -285,6 +224,11 @@ export class AttendanceService {
                 dto.workDate,
                 manager,
             );
+            await this.leaveReconciliationService.assertAttendanceEventAllowed(
+                manager,
+                assignment,
+                occurredAt,
+            );
 
             await eventRepo.save(
                 this.createEvent(record.id, AttendanceEventType.CHECK_IN, occurredAt, AttendanceSource.ADMIN_MANUAL, dto),
@@ -314,10 +258,15 @@ export class AttendanceService {
             const recordRepo = manager.getRepository(AttendanceRecord);
             const eventRepo = manager.getRepository(AttendanceEvent);
 
-            const { record } = await this.resolveOrCreateRecord(
+            const { assignment, record } = await this.resolveOrCreateRecord(
                 dto.employeeId,
                 dto.workDate,
                 manager,
+            );
+            await this.leaveReconciliationService.assertAttendanceEventAllowed(
+                manager,
+                assignment,
+                occurredAt,
             );
 
             if (record.status !== AttendanceStatus.CHECKED_IN) {
@@ -487,6 +436,8 @@ export class AttendanceService {
     }
 
     async finalizeEndOfDayForDate(workDate: string): Promise<void> {
+        await this.leaveReconciliationService.reconcileAssignmentsForDate(workDate);
+
         await this.recordRepo
             .createQueryBuilder()
             .update(AttendanceRecord)
