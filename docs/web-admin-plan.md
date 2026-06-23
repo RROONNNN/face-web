@@ -513,16 +513,16 @@ Pragmatic first implementation if backend remains unchanged:
 
 Each item is intentionally small enough for one PR.
 
-1. Web foundation: admin route groups, base layout, environment config, API envelope/error utilities.
-2. Login/logout flow: login page, token/session persistence, protected admin routes, refresh request helper.
-3. Admin shell: sidebar/topbar, route loading/error boundaries, empty dashboard assembled from existing list calls.
-4. Users list: `/employees` table with pagination, search, role/department/active filters.
-5. User create: `/employees/new` using `POST /api/auth/register`.
-6. User detail/edit/deactivate: `/employees/[id]`.
-7. Shifts list and detail: list shifts, create/edit shift, work period editor, deactivate.
-8. Departments list and edit: department CRUD with default shift selector.
-9. Shift assignments list: filters by employee/shift/date/source.
-10. Shift assignment actions: upsert assignment and generate assignments for a date range.
+1. [x] Web foundation: admin route groups, base layout, environment config, API envelope/error utilities.
+2. [x] Login/logout flow: login page, token/session persistence, protected admin routes, refresh request helper.
+3. [x] Admin shell: sidebar/topbar, route loading/error boundaries. Dashboard content intentionally deferred.
+4. [x] Users list: `/employees` table with pagination, search, role/department/active filters.
+5. [x] User create: `/employees/new` using `POST /api/auth/register`.
+6. [x] User detail/edit/deactivate: `/employees/[id]`.
+7. [x] Shifts list and detail: list shifts, create/edit shift, work period editor, deactivate.
+8. [x] Departments list and edit: department CRUD with default shift selector.
+9. [x] Shift assignments list: filters by employee/shift/date/source.
+10. [x] Shift assignment actions: upsert assignment and generate assignments for a date range.
 11. Attendance list: filters by employee/date/status and record detail display.
 12. Attendance admin actions: manual check-in, manual check-out, finalize day.
 13. Leave request list: admin filters and status-focused table.
@@ -531,6 +531,7 @@ Each item is intentionally small enough for one PR.
 16. Holiday Excel import.
 17. Shared API type extraction: move stable enums/interfaces into `packages/shared` and consume from web.
 18. Production auth hardening PR after backend gaps are resolved.
+19. Dashboard: operational summary assembled from completed feature APIs.
 
 ## 9. API Gaps Or Inconsistencies Blocking Frontend
 
@@ -550,6 +551,7 @@ Each item is intentionally small enough for one PR.
 - Admin check-in DTO accepts `faceSimilarity`; admin check-out DTO does not. This may be intentional, but the check-in/check-out forms will be asymmetric.
 - Attendance list has only exact `date`, not date range.
 - Leave and attendance list endpoints do not expose sort query parameters.
+- Missing `GET /api/shifts/:id`. The frontend currently resolves shift detail pages from the paginated shift list as a workaround; a dedicated detail endpoint is needed for robust deep links.
 - `packages/shared` leave `CreateLeaveRequest` is missing `departmentShiftId`, while API `CreateLeaveRequestDto` requires it.
 - User create is under `POST /api/auth/register`, while user management otherwise lives under `/api/users`. This is workable but inconsistent for frontend mental model.
 - User update service logic has an explicit branch for unassigning `departmentId` with `null`, but `UpdateUserDto` inherits `IsUUID` from create and may reject null before service code runs. Verify desired behavior before building an "unassign department" UI.
@@ -596,16 +598,16 @@ Each item is intentionally small enough for one PR.
 
 ## Proposed Feature Order
 
-1. Foundation and API client.
-2. Login/logout and protected routes.
-3. Admin shell and dashboard.
-4. Users list.
-5. User create.
-6. User detail/edit/deactivate.
-7. Shifts.
-8. Departments.
-9. Shift assignments list.
-10. Shift assignment actions.
+1. [x] Foundation and API client.
+2. [x] Login/logout and protected routes.
+3. [x] Admin shell.
+4. [x] Users list.
+5. [x] User create.
+6. [x] User detail/edit/deactivate.
+7. [x] Shifts.
+8. [x] Departments.
+9. [x] Shift assignments list.
+10. [x] Shift assignment actions.
 11. Attendance list.
 12. Attendance admin actions.
 13. Leave request list.
@@ -614,3 +616,4 @@ Each item is intentionally small enough for one PR.
 16. Holiday import.
 17. Shared types extraction.
 18. Production auth hardening.
+19. Dashboard.
