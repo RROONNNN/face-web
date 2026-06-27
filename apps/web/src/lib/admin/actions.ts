@@ -10,7 +10,7 @@ import {
 } from '@/lib/admin/form';
 import { authenticatedApiFetch } from '@/lib/api/authenticated';
 import { toQueryString } from '@/lib/api/query';
-import type { Department, Shift, User } from '@/lib/api/types';
+import type { Department, GeofenceConfig, Shift, User } from '@/lib/api/types';
 import { getSession } from '@/lib/auth/session';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -289,6 +289,17 @@ function compactBody<T extends Record<string, unknown>>(body: T): Record<string,
   );
 }
 
+function nullableNumber(value: FormDataEntryValue | null): number | null | undefined {
+  const text = String(value ?? '').trim();
+
+  if (!text) {
+    return null;
+  }
+
+  const parsed = Number(text);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 function buildOccurredAt(workDate: string, timeStr: string): string {
   const [hours, minutes] = timeStr.split(':').map(Number);
   const date = new Date(workDate);
@@ -387,7 +398,8 @@ function appendNotice(path: string, notice: string): string {
 
 export async function finalizeDayAction(formData: FormData) {
   await requireAdmin();
-  let location = '/attendance';
+  const returnPath = safeReturnPath(formData.get('returnPath')) ?? '/attendance';
+  let location = returnPath;
 
   try {
     await authenticatedApiFetch('/api/attendance/admin/finalize-day', {
@@ -398,9 +410,10 @@ export async function finalizeDayAction(formData: FormData) {
     });
 
     revalidatePath('/attendance');
-    location = `/attendance${encodeNotice({ success: 'Day finalized.' })}`;
+    revalidatePath(revalidationPath(returnPath));
+    location = appendNotice(returnPath, encodeNotice({ success: 'Day finalized.' }));
   } catch (error) {
-    location = `/attendance${encodeNotice({ error })}`;
+    location = appendNotice(returnPath, encodeNotice({ error }));
   }
 
   redirect(location);
@@ -444,6 +457,30 @@ export async function rejectLeaveAction(formData: FormData) {
     location = `/leave-requests/${id}${encodeNotice({ success: 'Leave request rejected.' })}`;
   } catch (error) {
     location = `/leave-requests/${id}${encodeNotice({ error })}`;
+  }
+
+  redirect(location);
+}
+
+export async function upsertGeofenceConfigAction(formData: FormData) {
+  await requireAdmin();
+
+  let location = '/geofence';
+
+  try {
+    await authenticatedApiFetch<GeofenceConfig>('/api/geofence', {
+      method: 'PUT',
+      body: {
+        centerLat: nullableNumber(formData.get('centerLat')),
+        centerLon: nullableNumber(formData.get('centerLon')),
+        radiusMeters: nullableNumber(formData.get('radiusMeters')),
+      },
+    });
+
+    revalidatePath('/geofence');
+    location = `/geofence${encodeNotice({ success: 'Geofence settings saved.' })}`;
+  } catch (error) {
+    location = `/geofence${encodeNotice({ error })}`;
   }
 
   redirect(location);

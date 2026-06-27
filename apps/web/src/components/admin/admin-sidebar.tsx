@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { MapPin } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import type { ComponentType } from 'react';
 import { useState } from 'react';
@@ -17,6 +18,7 @@ const management = [
 const administration = [
   { href: '/leave-requests', label: 'Leave Requests', icon: FileIcon },
   { href: '/holidays', label: 'Holidays', icon: CalendarIcon },
+  { href: '/geofence', label: 'Geofence', icon: MapPin },
 ] as const;
 
 type AdminSidebarProps = {

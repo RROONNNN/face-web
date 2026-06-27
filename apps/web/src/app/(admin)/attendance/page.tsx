@@ -4,9 +4,10 @@ import { PageHeader } from '@/components/admin/page-header';
 import { Pagination } from '@/components/admin/pagination';
 import { StatusBadge } from '@/components/admin/status-badge';
 import { getAttendance, getUsers } from '@/lib/admin/data';
-import { firstParam, numberParam } from '@/lib/api/query';
+import { firstParam, numberParam, toQueryString } from '@/lib/api/query';
 import type { AttendanceStatus } from '@/lib/api/types';
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { AttendanceActionButtons } from './attendance-actions';
 
 type AttendancePageProps = {
@@ -21,13 +22,22 @@ export default async function AttendancePage({
   searchParams,
 }: AttendancePageProps) {
   const params = await searchParams;
+  const selectedDate = firstParam(params.date) ?? getTodayWorkDate();
   const query = {
     page: numberParam(params.page, 1),
     limit: numberParam(params.limit, 20),
     employeeId: firstParam(params.employeeId),
-    date: firstParam(params.date),
+    date: selectedDate,
     status: firstParam(params.status) as AttendanceStatus | undefined,
     shouldShowPending: false,
+  };
+  const listQuery = {
+    page: query.page,
+    limit: query.limit,
+    employeeId: query.employeeId,
+    date: query.date,
+    status: query.status,
+    shouldShowPending: query.shouldShowPending,
   };
 
   const [attendanceRecords, employees] = await Promise.all([
@@ -90,6 +100,7 @@ export default async function AttendancePage({
                 <th>Check-in</th>
                 <th>Check-out</th>
                 <th>Late (min)</th>
+                <th>Detail</th>
               </tr>
             </thead>
             <tbody>
@@ -104,6 +115,14 @@ export default async function AttendancePage({
                   <td>{record.checkedInAt ? formatTime(record.checkedInAt) : '-'}</td>
                   <td>{record.checkedOutAt ? formatTime(record.checkedOutAt) : '-'}</td>
                   <td>{record.lateMinutes > 0 ? record.lateMinutes : '-'}</td>
+                  <td>
+                    <Link
+                      className="table-link"
+                      href={`/attendance/${record.id}${toQueryString(listQuery)}`}
+                    >
+                      View
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -120,4 +139,10 @@ function formatTime(value: string): string {
   return new Intl.DateTimeFormat('en', { timeStyle: 'short' }).format(
     new Date(value),
   );
+}
+
+function getTodayWorkDate(): string {
+  return new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+  }).format(new Date());
 }

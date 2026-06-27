@@ -222,6 +222,21 @@ curl --location '{{base_url}}/attendance/admin/finalize-day' \
 
 ---
 
+### 13b. Admin Attendance Dashboard
+Admin-only daily attendance summary for the dashboard. `workDate` is optional and defaults to today. `departmentId` is optional.
+```bash
+curl --location '{{base_url}}/attendance/admin/dashboard?workDate=2026-06-23&departmentId={{DEPARTMENT_ID}}' \
+--header 'Authorization: Bearer {{accessToken}}'
+```
+
+To view all departments for the selected date, omit `departmentId`:
+```bash
+curl --location '{{base_url}}/attendance/admin/dashboard?workDate=2026-06-23' \
+--header 'Authorization: Bearer {{accessToken}}'
+```
+
+---
+
 ### 14. List Holidays
 Fetches a paginated list of holidays. You can filter by `year` and `search`.
 ```bash

@@ -96,6 +96,15 @@ export type Department = {
   updatedAt: string;
 };
 
+export type GeofenceConfig = {
+  id: string;
+  centerLat: number | null;
+  centerLon: number | null;
+  radiusMeters: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type ShiftAssignment = {
   id: string;
   employeeId: string;
@@ -125,6 +134,13 @@ export type AttendanceStatus =
   | 'absent'
   | 'on_leave'
   | 'invalid';
+
+export type DashboardAttendanceStatus = AttendanceStatus | 'no_record';
+export type DashboardRecommendedAction =
+  | 'manual_check_in'
+  | 'manual_check_out'
+  | 'review_absence'
+  | 'none';
 
 export type AttendanceEventType = 'check_in' | 'check_out';
 
@@ -168,6 +184,71 @@ export type AttendanceRecord = {
   checkInSource?: AttendanceSource | null;
   checkOutSource?: AttendanceSource | null;
   lateMinutes: number;
+};
+
+export type AttendanceDashboardTotals = {
+  scheduled: number;
+  pending: number;
+  checkedIn: number;
+  completed: number;
+  late: number;
+  absent: number;
+  missingCheckOut: number;
+  onLeave: number;
+  invalid: number;
+  noRecord: number;
+};
+
+export type AttendanceDashboardRates = {
+  attendanceRate: number;
+  completionRate: number;
+  lateRate: number;
+};
+
+export type AttendanceDashboardDepartment = {
+  id: string | null;
+  name: string;
+  scheduled: number;
+  checkedIn: number;
+  completed: number;
+  late: number;
+  absent: number;
+  missingCheckOut: number;
+  onLeave: number;
+  pending: number;
+};
+
+export type AttendanceDashboardAttention = {
+  recordId: string | null;
+  shiftAssignmentId: string;
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  departmentId: string | null;
+  departmentName: string | null;
+  shiftName: string;
+  status: DashboardAttendanceStatus;
+  expectedCheckInAt: string;
+  expectedCheckOutAt: string;
+  checkedInAt: string | null;
+  checkedOutAt: string | null;
+  lateMinutes: number;
+  recommendedAction: DashboardRecommendedAction;
+};
+
+export type AttendanceDashboardData = {
+  workDate: string;
+  generatedAt: string;
+  timezone: string;
+  totals: AttendanceDashboardTotals;
+  rates: AttendanceDashboardRates;
+  departments: AttendanceDashboardDepartment[];
+  attention: AttendanceDashboardAttention[];
+  actions: {
+    canFinalizeDay: boolean;
+    finalizablePendingCount: number;
+    finalizableCheckedInCount: number;
+  };
 };
 
 export type Holiday = {

@@ -15,6 +15,7 @@ import { jwtConfig } from './config/jwt.config';
 import { AttendanceModule } from './modules/attendance/attendance.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DepartmentsModule } from './modules/departments/departments.module';
+import { GeofenceModule } from './modules/geofence/geofence.module';
 import { LeaveModule } from './modules/leave/leave.module';
 import { ShiftsModule } from './modules/shifts/shifts.module';
 import { UsersModule } from './modules/users/users.module';
@@ -46,6 +47,7 @@ import { HolidaysModule } from './modules/holidays/holidays.module';
     ShiftsModule,
     AttendanceModule,
     DepartmentsModule,
+    GeofenceModule,
     LeaveModule,
     ScheduleModule.forRoot(),
     HolidaysModule,

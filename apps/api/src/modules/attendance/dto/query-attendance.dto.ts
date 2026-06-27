@@ -1,5 +1,5 @@
-import { Type } from 'class-transformer';
-import { IsDateString, IsEnum, IsInt, IsOptional, IsUUID, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsUUID, Min } from 'class-validator';
 import { AttendanceStatus } from '../enums/attendance-status.enum';
 
 export class QueryAttendanceDto {
@@ -26,8 +26,14 @@ export class QueryAttendanceDto {
   @IsInt()
   @Min(1)
   limit = 20;
+
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }: { value: unknown }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
   shouldShowPending?: boolean;
 
   @IsOptional()

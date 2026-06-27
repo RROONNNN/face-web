@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { GeofenceModule } from '../geofence/geofence.module';
 import { HolidaysModule } from '../holidays/holidays.module';
 import { LeaveModule } from '../leave/leave.module';
 import { EmployeeShiftAssignment } from '../shifts/entities/employee-shift-assignment.entity';
@@ -12,6 +13,7 @@ import { AttendanceRecord } from './entities/attendance-record.entity';
   imports: [
     LeaveModule,
     HolidaysModule,
+    GeofenceModule,
     TypeOrmModule.forFeature([
       AttendanceRecord,
       AttendanceEvent,

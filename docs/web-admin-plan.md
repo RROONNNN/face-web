@@ -417,7 +417,7 @@ This sitemap uses only currently available APIs.
 - `/`
   - Redirect authenticated admins to `/dashboard`; redirect unauthenticated users to `/login`.
 - `/dashboard`
-  - Lightweight operational overview assembled from list endpoints. No aggregate dashboard API exists yet.
+  - Daily attendance operations overview backed by `GET /api/attendance/admin/dashboard`.
 - `/employees`
   - Employee/admin table from `GET /api/users`.
   - Filters: search, department, role, active status.
@@ -515,7 +515,7 @@ Each item is intentionally small enough for one PR.
 
 1. [x] Web foundation: admin route groups, base layout, environment config, API envelope/error utilities.
 2. [x] Login/logout flow: login page, token/session persistence, protected admin routes, refresh request helper.
-3. [x] Admin shell: sidebar/topbar, route loading/error boundaries. Dashboard content intentionally deferred.
+3. [x] Admin shell: sidebar/topbar, route loading/error boundaries.
 4. [x] Users list: `/employees` table with pagination, search, role/department/active filters.
 5. [x] User create: `/employees/new` using `POST /api/auth/register`.
 6. [x] User detail/edit/deactivate: `/employees/[id]`.
@@ -531,7 +531,7 @@ Each item is intentionally small enough for one PR.
 16. Holiday Excel import.
 17. Shared API type extraction: move stable enums/interfaces into `packages/shared` and consume from web.
 18. Production auth hardening PR after backend gaps are resolved.
-19. Dashboard: operational summary assembled from completed feature APIs.
+19. [x] Dashboard: daily attendance operations summary backed by the dedicated admin dashboard API.
 
 ## 9. API Gaps Or Inconsistencies Blocking Frontend
 
@@ -616,4 +616,4 @@ Each item is intentionally small enough for one PR.
 16. Holiday import.
 17. Shared types extraction.
 18. Production auth hardening.
-19. Dashboard.
+19. [x] Dashboard.

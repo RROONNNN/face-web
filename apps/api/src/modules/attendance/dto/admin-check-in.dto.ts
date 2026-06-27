@@ -1,4 +1,4 @@
-import { IsDateString, IsLatitude, IsLongitude, IsNumber, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsDateString, IsNumber, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class AdminCheckInDto {
   @IsUUID()
@@ -14,15 +14,6 @@ export class AdminCheckInDto {
   @IsNumber()
   faceSimilarity?: number;
 
-  @IsOptional()
-  @IsNumber()
-  @IsLatitude()
-  latitude?: number;
-
-  @IsOptional()
-  @IsNumber()
-  @IsLongitude()
-  longitude?: number;
 
   @IsOptional()
   @IsString()

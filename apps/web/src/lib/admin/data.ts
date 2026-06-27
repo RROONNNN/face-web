@@ -11,9 +11,11 @@ import type {
   User,
   AttendanceStatus,
   AttendanceRecord,
+  AttendanceDashboardData,
   EmployeeAttendanceData,
   LeaveStatus,
   LeaveRequest,
+  GeofenceConfig,
 } from '@/lib/api/types';
 
 export type UsersQuery = {
@@ -110,6 +112,21 @@ export function getAttendance(query: AttendanceQuery = {}) {
   );
 }
 
+export function getAttendanceRecord(id: string) {
+  return authenticatedApiFetch<AttendanceRecord>(`/api/attendance/${id}`);
+}
+
+export type AttendanceDashboardQuery = {
+  workDate?: string;
+  departmentId?: string;
+};
+
+export function getAttendanceDashboard(query: AttendanceDashboardQuery = {}) {
+  return authenticatedApiFetch<AttendanceDashboardData>(
+    `/api/attendance/admin/dashboard${toQueryString(query)}`,
+  );
+}
+
 export type EmployeeAttendanceQuery = {
   employeeId: string;
   startDate: string;
@@ -139,4 +156,8 @@ export function getLeaveRequests(query: LeaveRequestsQuery = {}) {
 
 export function getLeaveRequest(id: string) {
   return authenticatedApiFetch<LeaveRequest>(`/api/leave/${id}`);
+}
+
+export function getGeofenceConfig() {
+  return authenticatedApiFetch<GeofenceConfig | null>('/api/geofence');
 }

@@ -13,7 +13,15 @@ function SubmitButton({ label, pendingLabel }: { label: string; pendingLabel: st
   );
 }
 
-export function AttendanceActionButtons({ employees }: { employees: Array<{ id: string; name: string }> }) {
+export function AttendanceActionButtons({
+  employees,
+  defaultWorkDate,
+  returnPath,
+}: {
+  employees: Array<{ id: string; name: string }>;
+  defaultWorkDate?: string;
+  returnPath?: string;
+}) {
   const [activeModal, setActiveModal] = useState<'checkIn' | 'checkOut' | 'finalize' | null>(null);
 
   return (
@@ -31,6 +39,7 @@ export function AttendanceActionButtons({ employees }: { employees: Array<{ id: 
       {activeModal === 'checkIn' && (
         <Modal onClose={() => setActiveModal(null)} title="Manual Check-in">
           <form action={adminCheckInAction} className="form-panel" onSubmit={() => setActiveModal(null)}>
+            {returnPath ? <input name="returnPath" type="hidden" value={returnPath} /> : null}
             <div className="form-grid">
               <label className="field">
                 <span>Employee</span>
@@ -43,7 +52,7 @@ export function AttendanceActionButtons({ employees }: { employees: Array<{ id: 
               </label>
               <label className="field">
                 <span>Work Date</span>
-                <input name="workDate" type="date" required />
+                <input defaultValue={defaultWorkDate} name="workDate" type="date" required />
               </label>
               <label className="field">
                 <span>Occurred At</span>
@@ -65,6 +74,7 @@ export function AttendanceActionButtons({ employees }: { employees: Array<{ id: 
       {activeModal === 'checkOut' && (
         <Modal onClose={() => setActiveModal(null)} title="Manual Check-out">
           <form action={adminCheckOutAction} className="form-panel" onSubmit={() => setActiveModal(null)}>
+            {returnPath ? <input name="returnPath" type="hidden" value={returnPath} /> : null}
             <div className="form-grid">
               <label className="field">
                 <span>Employee</span>
@@ -77,7 +87,7 @@ export function AttendanceActionButtons({ employees }: { employees: Array<{ id: 
               </label>
               <label className="field">
                 <span>Work Date</span>
-                <input name="workDate" type="date" required />
+                <input defaultValue={defaultWorkDate} name="workDate" type="date" required />
               </label>
               <label className="field">
                 <span>Occurred At</span>
@@ -99,13 +109,14 @@ export function AttendanceActionButtons({ employees }: { employees: Array<{ id: 
       {activeModal === 'finalize' && (
         <Modal onClose={() => setActiveModal(null)} title="Finalize Day">
           <form action={finalizeDayAction} className="form-panel" onSubmit={() => setActiveModal(null)}>
+            {returnPath ? <input name="returnPath" type="hidden" value={returnPath} /> : null}
             <p style={{ marginBottom: '1rem' }}>
               Finalizing the day will mark pending records as absent and checked-in records as missing checkout. This action cannot be undone.
             </p>
             <div className="form-grid">
               <label className="field">
                 <span>Work Date</span>
-                <input name="workDate" type="date" required />
+                <input defaultValue={defaultWorkDate} name="workDate" type="date" required />
               </label>
             </div>
             <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>

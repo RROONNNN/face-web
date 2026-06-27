@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { AccountRole } from '../auth/account-role.enum';
 import { AuthGuard } from '../auth/auth.guard';
 import { AccountRoles } from '../auth/roles.decorator';
@@ -8,6 +8,7 @@ import { AdminCheckInDto } from './dto/admin-check-in.dto';
 import { AdminCheckOutDto } from './dto/admin-check-out.dto';
 import { CheckInDto } from './dto/check-in.dto';
 import { CheckOutDto } from './dto/check-out.dto';
+import { QueryAttendanceDashboardDto } from './dto/query-attendance-dashboard.dto';
 import { QueryAttendanceDto } from './dto/query-attendance.dto';
 import { QueryByEmployeeAttendanceDto } from './dto/query-by-employee-attendance.dto';
 import { SyncCheckInDto, SyncCheckOutDto } from './dto/sync-event.dto';
@@ -59,6 +60,12 @@ export class AttendanceController {
         return this.attendanceService.findAll(query);
     }
 
+    @Get('admin/dashboard')
+    @AccountRoles([AccountRole.Admin])
+    dashboard(@Query() query: QueryAttendanceDashboardDto) {
+        return this.attendanceService.getAdminDashboard(query);
+    }
+
     @Post('admin/finalize-day')
     @AccountRoles([AccountRole.Admin])
     finalizeDay(@Body('workDate') workDate: string) {
@@ -68,5 +75,11 @@ export class AttendanceController {
     @AccountRoles([AccountRole.Admin])
     queryByEmployee(@Query() query: QueryByEmployeeAttendanceDto) {
         return this.attendanceService.queryByEmployee(query);
+    }
+
+    @Get(':id')
+    @AccountRoles([AccountRole.Admin])
+    findOne(@Param('id', ParseUUIDPipe) id: string) {
+        return this.attendanceService.findOne(id);
     }
 }
