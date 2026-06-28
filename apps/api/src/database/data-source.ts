@@ -6,6 +6,7 @@ import { AttendanceEvent } from '../modules/attendance/entities/attendance-event
 import { AttendanceRecord } from '../modules/attendance/entities/attendance-record.entity';
 import { RefreshToken } from '../modules/auth/entities/refresh-token.entity';
 import { Department } from '../modules/departments/entities/department.entity';
+import { FaceData } from '../modules/face/entities/face-data.entity';
 import { GeofenceConfig } from '../modules/geofence/entities/geofence-config.entity';
 import { LeaveRequestDay } from '../modules/leave/entities/leave-request-day.entity';
 import { LeaveRequest } from '../modules/leave/entities/leave-request.entity';
@@ -36,6 +37,7 @@ export default new DataSource({
     AttendanceEvent,
     LeaveRequest,
     LeaveRequestDay,
+    FaceData,
   ],
   migrations: ['src/database/migrations/*.ts'],
 

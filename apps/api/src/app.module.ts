@@ -20,6 +20,7 @@ import { LeaveModule } from './modules/leave/leave.module';
 import { ShiftsModule } from './modules/shifts/shifts.module';
 import { UsersModule } from './modules/users/users.module';
 import { HolidaysModule } from './modules/holidays/holidays.module';
+import { FaceModule } from './modules/face/face.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { HolidaysModule } from './modules/holidays/holidays.module';
     LeaveModule,
     ScheduleModule.forRoot(),
     HolidaysModule,
+    FaceModule,
   ],
   controllers: [AppController],
   providers: [

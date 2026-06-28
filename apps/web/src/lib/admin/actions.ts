@@ -10,7 +10,7 @@ import {
 } from '@/lib/admin/form';
 import { authenticatedApiFetch } from '@/lib/api/authenticated';
 import { toQueryString } from '@/lib/api/query';
-import type { Department, GeofenceConfig, Shift, User } from '@/lib/api/types';
+import type { Department, FaceImportSummary, GeofenceConfig, Shift, User } from '@/lib/api/types';
 import { getSession } from '@/lib/auth/session';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -484,4 +484,62 @@ export async function upsertGeofenceConfigAction(formData: FormData) {
   }
 
   redirect(location);
+}
+
+export async function importEmployeeFacesAction(formData: FormData) {
+  await requireAdmin();
+
+  let location = '/employee-faces';
+
+  try {
+    const file = requiredFile(formData.get('file'));
+    const upload = new FormData();
+    upload.set('file', file);
+
+    const summary = await authenticatedApiFetch<FaceImportSummary>('/api/face/sync/file', {
+      method: 'POST',
+      body: upload,
+    });
+
+    revalidatePath('/employee-faces');
+    location = `/employee-faces${encodeNotice({ success: formatFaceImportSummary(summary) })}`;
+  } catch (error) {
+    location = `/employee-faces${encodeNotice({ error })}`;
+  }
+
+  redirect(location);
+}
+
+export async function deleteEmployeeFaceAction(formData: FormData) {
+  await requireAdmin();
+
+  let location = '/employee-faces';
+
+  try {
+    const employeeId = requiredString(formData.get('employeeId'));
+    await authenticatedApiFetch(`/api/face/${employeeId}`, {
+      method: 'DELETE',
+    });
+
+    revalidatePath('/employee-faces');
+    location = `/employee-faces${encodeNotice({ success: 'Face data deleted.' })}`;
+  } catch (error) {
+    location = `/employee-faces${encodeNotice({ error })}`;
+  }
+
+  redirect(location);
+}
+
+function requiredFile(value: FormDataEntryValue | null): File {
+  if (!(value instanceof File) || value.size === 0) {
+    throw new Error('JSON file is required.');
+  }
+
+  return value;
+}
+
+function formatFaceImportSummary(summary: FaceImportSummary): string {
+  const skippedCount = summary.skipped.length;
+
+  return `Imported ${summary.imported} of ${summary.total} records (${summary.created} created, ${summary.updated} updated, ${skippedCount} skipped).`;
 }

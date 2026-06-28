@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { MapPin } from 'lucide-react';
+import { MapPin, ScanFace } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import type { ComponentType } from 'react';
 import { useState } from 'react';
@@ -9,6 +9,7 @@ import { useState } from 'react';
 const management = [
   { href: '/dashboard', label: 'Dashboard', icon: DashboardIcon },
   { href: '/employees', label: 'Employees', icon: UsersIcon },
+  { href: '/employee-faces', label: 'Employee Faces', icon: ScanFace },
   { href: '/departments', label: 'Departments', icon: BuildingIcon },
   { href: '/attendance', label: 'Attendance', icon: CalendarIcon },
   { href: '/shifts', label: 'Shifts', icon: ClockIcon },

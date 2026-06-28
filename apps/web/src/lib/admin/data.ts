@@ -16,6 +16,8 @@ import type {
   LeaveStatus,
   LeaveRequest,
   GeofenceConfig,
+  EmployeeFace,
+  EmployeeFacesResponse,
 } from '@/lib/api/types';
 
 export type UsersQuery = {
@@ -160,4 +162,26 @@ export function getLeaveRequest(id: string) {
 
 export function getGeofenceConfig() {
   return authenticatedApiFetch<GeofenceConfig | null>('/api/geofence');
+}
+
+export type EmployeeFacesQuery = {
+  page?: number;
+  limit?: number;
+};
+
+export async function getEmployeeFaces(query: EmployeeFacesQuery = {}) {
+  const response = await authenticatedApiFetch<EmployeeFacesResponse>(
+    `/api/face${toQueryString(query)}`,
+  );
+  const totalPages = Math.ceil(response.total / response.limit);
+
+  return {
+    items: response.items,
+    meta: {
+      page: response.page,
+      limit: response.limit,
+      total: response.total,
+      totalPages,
+    },
+  } satisfies PaginatedData<EmployeeFace>;
 }

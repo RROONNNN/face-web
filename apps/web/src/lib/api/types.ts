@@ -105,6 +105,40 @@ export type GeofenceConfig = {
   updatedAt: string;
 };
 
+export type FaceEmployeeSummary = {
+  id: string;
+  employeeCode: string;
+  name: string;
+  department: string | null;
+  jobTitle: string | null;
+};
+
+export type EmployeeFace = {
+  id: string;
+  employeeId: string;
+  employee: FaceEmployeeSummary | null;
+  listFaceEmbedding: number[][];
+  imageUrl: string;
+  updatedTime: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type EmployeeFacesResponse = {
+  items: EmployeeFace[];
+  total: number;
+  page: number;
+  limit: number;
+};
+
+export type FaceImportSummary = {
+  total: number;
+  created: number;
+  updated: number;
+  skipped: string[];
+  imported: number;
+};
+
 export type ShiftAssignment = {
   id: string;
   employeeId: string;
