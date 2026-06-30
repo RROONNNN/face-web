@@ -10,20 +10,20 @@ import { ErrorsInterceptor } from './common/interceptors/errors.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { LoggerMiddleware } from './common/logger.middleware';
+import { cloudinaryConfig } from './config/cloudinary.config';
 import { databaseConfig } from './config/database.config';
 import { jwtConfig } from './config/jwt.config';
-import { cloudinaryConfig } from './config/cloudinary.config';
 import { AttendanceModule } from './modules/attendance/attendance.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DepartmentsModule } from './modules/departments/departments.module';
-import { GeofenceModule } from './modules/geofence/geofence.module';
-import { LeaveModule } from './modules/leave/leave.module';
-import { ShiftsModule } from './modules/shifts/shifts.module';
-import { UsersModule } from './modules/users/users.module';
-import { HolidaysModule } from './modules/holidays/holidays.module';
 import { FaceModule } from './modules/face/face.module';
-import { UploadsModule } from './modules/uploads/uploads.module';
+import { GeofenceModule } from './modules/geofence/geofence.module';
+import { HolidaysModule } from './modules/holidays/holidays.module';
+import { LeaveModule } from './modules/leave/leave.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { ShiftsModule } from './modules/shifts/shifts.module';
+import { UploadsModule } from './modules/uploads/uploads.module';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -41,7 +41,10 @@ import { ReportsModule } from './modules/reports/reports.module';
         username: configService.getOrThrow<string>('database.username'),
         password: configService.getOrThrow<string>('database.password'),
         database: configService.getOrThrow<string>('database.database'),
-
+        ssl:
+          configService.get<string>('NODE_ENV') === 'production'
+            ? { rejectUnauthorized: false }
+            : false,
         autoLoadEntities: true,
         synchronize: false,
       }),
