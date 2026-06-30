@@ -777,6 +777,35 @@ tr:last-child td {
   overflow-wrap: anywhere;
 }
 
+.attendance-audit-image-link {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.attendance-audit-image-link:hover span:last-child {
+  text-decoration: underline;
+}
+
+.attendance-audit-image-frame {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--muted);
+}
+
+.attendance-audit-image-frame img {
+  object-fit: cover;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;

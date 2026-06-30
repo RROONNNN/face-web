@@ -208,6 +208,7 @@ export type AuditEntry = {
   latitude?: number | null;
   longitude?: number | null;
   isOutOfZone?: boolean | null;
+  imageUrl?: string | null;
 };
 
 export type AttendanceRecord = {

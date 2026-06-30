@@ -12,6 +12,7 @@ export interface AuditEntry {
     latitude?: number | null;
     longitude?: number | null;
     isOutOfZone?: boolean | null;
+    imageUrl?: string | null;
 }
 @Entity('attendance_records')
 export class AttendanceRecord {

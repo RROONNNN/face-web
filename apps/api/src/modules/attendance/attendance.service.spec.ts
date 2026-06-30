@@ -1,9 +1,206 @@
 import { AttendanceService } from './attendance.service';
+import { AttendanceEvent } from './entities/attendance-event.entity';
+import { AttendanceRecord } from './entities/attendance-record.entity';
+import { EmployeeShiftAssignment } from '../shifts/entities/employee-shift-assignment.entity';
+import { User } from '../users/entities/user.entity';
 import { AttendanceEventType } from './enums/attendance-event.type';
 import { AttendanceSource } from './enums/attendance-source.enum';
 import { AttendanceStatus } from './enums/attendance-status.enum';
 
 describe('AttendanceService', () => {
+  function createMobileAttendanceHarness({
+    record,
+    isOutOfZone,
+  }: {
+    record: Partial<AttendanceRecord>;
+    isOutOfZone: boolean;
+  }) {
+    const assignment = {
+      id: 'assignment-1',
+      employeeId: 'employee-1',
+      workDate: '2026-06-23',
+      shift: {
+        lateGraceMinutes: 5,
+      },
+    };
+    const employee = {
+      id: 'employee-1',
+      employeeCode: 'EMP001',
+      name: 'Employee One',
+      department: 'Engineering',
+      departmentId: 'department-1',
+      jobTitle: 'Engineer',
+    };
+    const attendanceRecord = {
+      id: 'record-1',
+      shiftAssignmentId: 'assignment-1',
+      employeeId: 'employee-1',
+      workDate: '2026-06-23',
+      status: AttendanceStatus.PENDING,
+      expectedCheckInAt: new Date('2026-06-23T01:00:00.000Z'),
+      expectedCheckOutAt: new Date('2026-06-23T10:00:00.000Z'),
+      checkedInAt: null,
+      checkedOutAt: null,
+      auditCheckIn: [],
+      auditCheckOut: [],
+      lateMinutes: 0,
+      ...record,
+    } as AttendanceRecord;
+
+    const recordRepo = {
+      findOneOrFail: jest.fn().mockResolvedValue(attendanceRecord),
+      save: jest.fn(async (value) => value),
+    };
+    const assignmentRepo = {
+      findOne: jest.fn().mockResolvedValue(assignment),
+    };
+    const userRepo = {
+      findOne: jest.fn().mockResolvedValue(employee),
+    };
+    const transactionEventRepo = {
+      save: jest.fn(async (event) => ({ id: 'event-1', ...event })),
+    };
+    const manager = {
+      getRepository: jest.fn((target) => {
+        if (target === AttendanceRecord) return recordRepo;
+        if (target === AttendanceEvent) return transactionEventRepo;
+        if (target === EmployeeShiftAssignment) return assignmentRepo;
+        if (target === User) return userRepo;
+        throw new Error(`Unexpected repository target ${String(target)}`);
+      }),
+    };
+    const dataSource = {
+      transaction: jest.fn((callback) => callback(manager)),
+    };
+    const leaveReconciliationService = {
+      reconcileAssignment: jest.fn(),
+      assertAttendanceEventAllowed: jest.fn(),
+    };
+    const geofenceService = {
+      evaluate: jest.fn().mockResolvedValue(isOutOfZone),
+    };
+    const rootEventRepo = {
+      create: jest.fn((event) => event),
+    };
+    const service = new AttendanceService(
+      {} as never,
+      rootEventRepo as never,
+      {} as never,
+      dataSource as never,
+      leaveReconciliationService as never,
+      {} as never,
+      geofenceService as never,
+    );
+
+    return {
+      attendanceRecord,
+      recordRepo,
+      transactionEventRepo,
+      geofenceService,
+      service,
+    };
+  }
+
+  describe('mobile check-in/check-out', () => {
+    it('keeps an out-of-zone check-in in audit only without marking the user checked in', async () => {
+      const { attendanceRecord, recordRepo, service } = createMobileAttendanceHarness({
+        record: {},
+        isOutOfZone: true,
+      });
+      const occurredAt = '2026-06-23T01:08:00.000Z';
+
+      const event = await service.checkIn({
+        employeeId: 'employee-1',
+        occurredAt,
+        source: AttendanceSource.MOBILE_FACE_RECOGNITION,
+        latitude: 10.762622,
+        longitude: 106.660172,
+        deviceId: 'mobile-1',
+      });
+
+      expect(event.isOutOfZone).toBe(true);
+      expect(attendanceRecord.auditCheckIn).toEqual([
+        {
+          id: 'event-1',
+          occurredAt: new Date(occurredAt),
+          source: AttendanceSource.MOBILE_FACE_RECOGNITION,
+          deviceId: 'mobile-1',
+          latitude: 10.762622,
+          longitude: 106.660172,
+          isOutOfZone: true,
+        },
+      ]);
+      expect(attendanceRecord.checkedInAt).toBeNull();
+      expect(attendanceRecord.status).toBe(AttendanceStatus.PENDING);
+      expect(attendanceRecord.checkInSource).toBeUndefined();
+      expect(recordRepo.save).toHaveBeenCalledWith(attendanceRecord);
+    });
+
+    it('keeps an out-of-zone check-out in audit only without marking the user checked out', async () => {
+      const checkedInAt = new Date('2026-06-23T01:03:00.000Z');
+      const { attendanceRecord, recordRepo, service } = createMobileAttendanceHarness({
+        record: {
+          status: AttendanceStatus.CHECKED_IN,
+          checkedInAt,
+          checkInSource: AttendanceSource.MOBILE_FACE_RECOGNITION,
+        },
+        isOutOfZone: true,
+      });
+      const occurredAt = '2026-06-23T10:07:00.000Z';
+
+      const event = await service.checkOut({
+        employeeId: 'employee-1',
+        occurredAt,
+        source: AttendanceSource.MOBILE_FACE_RECOGNITION,
+        latitude: 10.762622,
+        longitude: 106.660172,
+        deviceId: 'mobile-1',
+      });
+
+      expect(event.isOutOfZone).toBe(true);
+      expect(attendanceRecord.auditCheckOut).toEqual([
+        {
+          id: 'event-1',
+          occurredAt: new Date(occurredAt),
+          source: AttendanceSource.MOBILE_FACE_RECOGNITION,
+          deviceId: 'mobile-1',
+          latitude: 10.762622,
+          longitude: 106.660172,
+          isOutOfZone: true,
+        },
+      ]);
+      expect(attendanceRecord.checkedOutAt).toBeNull();
+      expect(attendanceRecord.status).toBe(AttendanceStatus.CHECKED_IN);
+      expect(attendanceRecord.checkOutSource).toBeUndefined();
+      expect(recordRepo.save).toHaveBeenCalledWith(attendanceRecord);
+    });
+
+    it('does not replace an existing checkout timestamp', async () => {
+      const checkedOutAt = new Date('2026-06-23T10:01:00.000Z');
+      const { attendanceRecord, service } = createMobileAttendanceHarness({
+        record: {
+          status: AttendanceStatus.COMPLETED,
+          checkedInAt: new Date('2026-06-23T01:03:00.000Z'),
+          checkedOutAt,
+          checkOutSource: AttendanceSource.MOBILE_FACE_RECOGNITION,
+        },
+        isOutOfZone: false,
+      });
+
+      await service.checkOut({
+        employeeId: 'employee-1',
+        occurredAt: '2026-06-23T10:15:00.000Z',
+        source: AttendanceSource.MOBILE_FACE_RECOGNITION,
+        latitude: 10.762622,
+        longitude: 106.660172,
+        deviceId: 'mobile-1',
+      });
+
+      expect(attendanceRecord.checkedOutAt).toBe(checkedOutAt);
+      expect(attendanceRecord.status).toBe(AttendanceStatus.COMPLETED);
+    });
+  });
+
   describe('queryByEmployee', () => {
     it('filters records, returns summary counts, and enriches audits from attendance events', async () => {
       const completedRecord = {

@@ -238,6 +238,19 @@ export class AttendanceService {
         });
     }
 
+    private toAuditEntry(event: AttendanceEvent): AuditEntry {
+        return {
+            id: event.id,
+            occurredAt: event.occurredAt,
+            source: event.source,
+            deviceId: event.deviceId ?? null,
+            latitude: event.latitude ?? null,
+            longitude: event.longitude ?? null,
+            isOutOfZone: event.isOutOfZone ?? null,
+            ...(event.imageUrl ? { imageUrl: event.imageUrl } : {}),
+        };
+    }
+
     /** Build an AttendanceEvent entity (not yet persisted) */
     private async createEvent(
         recordId: string,
@@ -305,10 +318,10 @@ export class AttendanceService {
 
             record.auditCheckIn = [
                 ...(record.auditCheckIn ?? []),
-                { occurredAt, source: dto.source, deviceId: dto.deviceId ?? null },
+                this.toAuditEntry(event),
             ];
 
-            if (!record.checkedInAt) {
+            if (!event.isOutOfZone && !record.checkedInAt) {
                 record.checkedInAt = occurredAt;
                 record.status = AttendanceStatus.CHECKED_IN;
                 record.lateMinutes = this.computeLateMinutes(
@@ -352,10 +365,17 @@ export class AttendanceService {
             const event = await eventRepo.save(
                 await this.createEvent(record.id, AttendanceEventType.CHECK_OUT, occurredAt, dto.source, dto),
             );
-            record.auditCheckOut = [...(record.auditCheckOut ?? []), { occurredAt, source: dto.source, deviceId: dto.deviceId ?? null }];
-            record.checkedOutAt = occurredAt;
-            record.status = AttendanceStatus.COMPLETED;
-            record.checkOutSource = dto.source;
+            record.auditCheckOut = [
+                ...(record.auditCheckOut ?? []),
+                this.toAuditEntry(event),
+            ];
+
+            if (!event.isOutOfZone && !record.checkedOutAt) {
+                record.checkedOutAt = occurredAt;
+                record.status = AttendanceStatus.COMPLETED;
+                record.checkOutSource = dto.source;
+            }
+
             await recordRepo.save(record);
             return this.toAttendanceEventWithUser(event, employee);
         });
@@ -1006,6 +1026,7 @@ export class AttendanceService {
                 latitude: event.latitude ?? null,
                 longitude: event.longitude ?? null,
                 isOutOfZone: event.isOutOfZone ?? null,
+                ...(event.imageUrl ? { imageUrl: event.imageUrl } : {}),
             }));
     }
 

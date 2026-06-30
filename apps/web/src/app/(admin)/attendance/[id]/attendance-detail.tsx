@@ -1,4 +1,5 @@
 import type { AttendanceRecord, AttendanceStatus, AuditEntry } from '@/lib/api/types';
+import Image from 'next/image';
 import Link from 'next/link';
 
 export function AttendanceDetail({
@@ -69,6 +70,25 @@ function AuditTimeline({ entries, title }: { entries: AuditEntry[]; title: strin
                 <strong>{formatDateTime(entry.occurredAt)}</strong>
               </div>
               <AuditMeta entry={entry} />
+              {entry.imageUrl ? (
+                <a
+                  className="attendance-audit-image-link"
+                  href={entry.imageUrl}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  <span className="attendance-audit-image-frame">
+                    <Image
+                      alt={`${title} image at ${formatDateTime(entry.occurredAt)}`}
+                      fill
+                      sizes="(max-width: 560px) 100vw, 50vw"
+                      src={entry.imageUrl}
+                      unoptimized
+                    />
+                  </span>
+                  <span>Open image</span>
+                </a>
+              ) : null}
             </li>
           ))}
         </ol>
