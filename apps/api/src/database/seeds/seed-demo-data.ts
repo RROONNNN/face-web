@@ -202,6 +202,18 @@ const absentDatesByEmployeeCode = new Map<string, string[]>([
   ['DEMO-EMP-004', ['2026-06-03']],
 ]);
 
+const requiredTables = [
+  'users',
+  'shifts',
+  'shift_work_periods',
+  'departments',
+  'employee_shift_assignments',
+  'attendance_records',
+  'attendance_events',
+  'leave_requests',
+  'leave_request_days',
+];
+
 function createCounter(): Counter {
   return { created: 0, reused: 0 };
 }
@@ -245,6 +257,34 @@ function getAdminConfig(): AdminSeedConfig {
     email: optionalEnv('DEMO_ADMIN_EMAIL', 'ADMIN_EMAIL'),
     password: optionalEnv('DEMO_ADMIN_PASSWORD', 'ADMIN_PASSWORD'),
   };
+}
+
+async function assertSchemaReady(): Promise<void> {
+  const missingTables: string[] = [];
+
+  for (const table of requiredTables) {
+    const result = await dataSource.query<Array<{ exists: string | null }>>(
+      'SELECT to_regclass($1) AS "exists"',
+      [`public.${table}`],
+    );
+
+    if (!result[0]?.exists) {
+      missingTables.push(table);
+    }
+  }
+
+  if (missingTables.length > 0) {
+    throw new Error(
+      [
+        'Database schema is not ready for demo seeding.',
+        `Missing table(s): ${missingTables.join(', ')}`,
+        'Run migrations first:',
+        '  npm run migration:run -w @face-web/api',
+        'Then rerun:',
+        '  npm run seed:demo-data -w @face-web/api',
+      ].join('\n'),
+    );
+  }
 }
 
 function addDays(workDate: string, days: number): string {
@@ -817,6 +857,7 @@ async function seedDemoData(): Promise<SeedSummary> {
   const summary = createSummary();
 
   await dataSource.initialize();
+  await assertSchemaReady();
 
   return dataSource.transaction(async (manager) => {
     const shiftsByKey = new Map<ShiftSeed['key'], Shift>();
