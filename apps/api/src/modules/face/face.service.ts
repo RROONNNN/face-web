@@ -5,7 +5,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThan, Repository } from 'typeorm';
+import {
+  FindManyOptions,
+  FindOptionsWhere,
+  MoreThan,
+  Repository,
+} from 'typeorm';
 import { AccountRole } from '../auth/account-role.enum';
 import { CurrentUser } from '../auth/current-user.interface';
 import { User } from '../users/entities/user.entity';
@@ -147,20 +152,34 @@ export class FaceService {
     };
   }
 
-  async findUpdatedAfter(input: QueryUpdatedFaceDataDto) {
-    if (!input.from_date) {
-      const records = await this.faceDataRepository.find({
-        relations: { employee: true },
-        order: { updatedTime: 'ASC' },
-      });
-      return records.map((record) => this.toFaceDataSyncResponse(record));
+  async findUpdatedAfter(
+    input: QueryUpdatedFaceDataDto,
+    currentUser?: CurrentUser,
+  ) {
+    if (!currentUser) {
+      throw new ForbiddenException('Authenticated user is required');
     }
-    const fromDate = this.parseDateTime(input.from_date);
-    const records = await this.faceDataRepository.find({
+
+    const where: FindOptionsWhere<FaceData> = {};
+
+    if (!currentUser.roles.includes(AccountRole.Admin)) {
+      where.employeeId = currentUser.id;
+    }
+
+    if (input.from_date) {
+      where.updatedTime = MoreThan(this.parseDateTime(input.from_date));
+    }
+
+    const findOptions: FindManyOptions<FaceData> = {
       relations: { employee: true },
-      where: { updatedTime: MoreThan(fromDate) },
       order: { updatedTime: 'ASC' },
-    });
+    };
+
+    if (Object.keys(where).length > 0) {
+      findOptions.where = where;
+    }
+
+    const records = await this.faceDataRepository.find(findOptions);
 
     return records.map((record) => this.toFaceDataSyncResponse(record));
   }
