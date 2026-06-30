@@ -16,16 +16,23 @@ function SubmitButton({ label, pendingLabel }: { label: string; pendingLabel: st
 export function AttendanceActionButtons({
   employees,
   defaultWorkDate,
+  defaultMonth,
+  defaultEmployeeId,
   returnPath,
 }: {
   employees: Array<{ id: string; name: string }>;
   defaultWorkDate?: string;
+  defaultMonth?: string;
+  defaultEmployeeId?: string;
   returnPath?: string;
 }) {
-  const [activeModal, setActiveModal] = useState<'checkIn' | 'checkOut' | 'finalize' | null>(null);
+  const [activeModal, setActiveModal] = useState<'checkIn' | 'checkOut' | 'finalize' | 'export' | null>(null);
 
   return (
     <div style={{ display: 'flex', gap: '0.5rem' }}>
+      <button className="secondary-button" onClick={() => setActiveModal('export')}>
+        Export Excel
+      </button>
       <button className="secondary-button" onClick={() => setActiveModal('checkIn')}>
         Manual Check-in
       </button>
@@ -35,6 +42,32 @@ export function AttendanceActionButtons({
       <button className="secondary-button" onClick={() => setActiveModal('finalize')}>
         Finalize Day
       </button>
+
+      {activeModal === 'export' && (
+        <Modal onClose={() => setActiveModal(null)} title="Export Attendance">
+          <form action="/attendance/export" className="form-panel" method="GET">
+            <div className="form-grid">
+              <label className="field">
+                <span>Month</span>
+                <input defaultValue={defaultMonth} name="month" type="month" required />
+              </label>
+              <label className="field">
+                <span>Employee</span>
+                <select defaultValue={defaultEmployeeId ?? ''} name="employeeId">
+                  <option value="">All employees</option>
+                  {employees.map((e) => (
+                    <option key={e.id} value={e.id}>{e.name}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button type="button" className="secondary-button" onClick={() => setActiveModal(null)}>Cancel</button>
+              <button className="primary-button" type="submit">Download</button>
+            </div>
+          </form>
+        </Modal>
+      )}
 
       {activeModal === 'checkIn' && (
         <Modal onClose={() => setActiveModal(null)} title="Manual Check-in">

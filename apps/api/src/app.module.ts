@@ -23,6 +23,7 @@ import { UsersModule } from './modules/users/users.module';
 import { HolidaysModule } from './modules/holidays/holidays.module';
 import { FaceModule } from './modules/face/face.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
+import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { UploadsModule } from './modules/uploads/uploads.module';
     HolidaysModule,
     FaceModule,
     UploadsModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [

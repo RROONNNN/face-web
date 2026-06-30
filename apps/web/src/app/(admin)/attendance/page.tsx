@@ -49,7 +49,12 @@ export default async function AttendancePage({
     <main className="admin-content">
       <PageHeader
         actions={
-          <AttendanceActionButtons employees={employees.items} />
+          <AttendanceActionButtons
+            defaultEmployeeId={query.employeeId}
+            defaultMonth={selectedDate.slice(0, 7)}
+            defaultWorkDate={selectedDate}
+            employees={employees.items}
+          />
         }
         description="View and manage employee attendance records."
         eyebrow="Time & Attendance"
