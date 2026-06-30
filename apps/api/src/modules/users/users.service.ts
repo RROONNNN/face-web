@@ -9,6 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { DataSource, Repository } from 'typeorm';
 import { PaginatedResponse } from '../../common/interfaces/paginated-response.interface';
 import { AccountRole } from '../auth/account-role.enum';
+import { CurrentUser } from '../auth/current-user.interface';
 import { Department } from '../departments/entities/department.entity';
 import { EmployeeShiftAssignment } from '../shifts/entities/employee-shift-assignment.entity';
 import { ShiftAssignmentSource } from '../shifts/enums/shift-assignment-source.enum';
@@ -121,7 +122,10 @@ export class UsersService {
     // CRUD
     // -------------------------------------------------------------------------
 
-    async findAll(query: QueryUsersDto): Promise<PaginatedResponse<Omit<User, 'passwordHash'>>> {
+    async findAll(
+        query: QueryUsersDto,
+        currentUser: CurrentUser,
+    ): Promise<PaginatedResponse<Omit<User, 'passwordHash'>>> {
         const {
             search,
             departmentId,
@@ -154,6 +158,11 @@ export class UsersService {
             .skip((page - 1) * limit)
             .take(limit);
 
+        const isAdmin = currentUser.roles.includes(AccountRole.Admin);
+        const isEmployee = currentUser.roles.includes(AccountRole.Employee);
+        if (isEmployee && !isAdmin) {
+            qb.andWhere('user.id = :currentUserId', { currentUserId: currentUser.id });
+        }
         if (search) {
             qb.andWhere(
                 '(LOWER(user.name) LIKE LOWER(:search) OR LOWER(user.employeeCode) LIKE LOWER(:search))',
