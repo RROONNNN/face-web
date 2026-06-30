@@ -12,6 +12,7 @@ Here is the complete sequence of `curl` commands to test the full lifecycle of t
 - `{{LEAVE_ID}}` - A leave-request UUID used for lookup and approval
 - `{{REJECT_LEAVE_ID}}` - A separate pending leave-request UUID used for rejection
 - `{{CANCEL_LEAVE_ID}}` - A separate pending leave-request UUID used for cancellation
+- `{{FACE_IMAGE_PATH}}` - Local image path used for Cloudinary upload testing
 
 ---
 
@@ -97,6 +98,23 @@ curl --location '{{base_url}}/shifts/assignments?employeeId={{EMPLOYEE_ID}}&work
 
 ---
 
+### 5b. Upload File to Cloudinary
+Uploads a file to Cloudinary through the API. In Postman, switch this to `form-data` and select your image for the `file` key. Copy `data.secureUrl` from the response if you want to pass it as `imageUrl` in check-in or check-out payloads.
+```bash
+curl --location '{{base_url}}/uploads?resourceType=image&folder=face-web/attendance' \
+--header 'Authorization: Bearer {{accessToken}}' \
+--form 'file=@"{{FACE_IMAGE_PATH}}"'
+```
+
+Example with an absolute local path:
+```bash
+curl --location '{{base_url}}/uploads?resourceType=image&folder=face-web/attendance' \
+--header 'Authorization: Bearer {{accessToken}}' \
+--form 'file=@"/Users/mac/thuan/face-web/apps/api/sample-face.jpg"'
+```
+
+---
+
 ### 6. Check In
 Simulates the employee checking in. In Postman, update the `occurredAt` to match the timezone and date of your assignment.
 ```bash
@@ -107,7 +125,8 @@ curl --location '{{base_url}}/attendance/check-in' \
     "employeeId": "{{EMPLOYEE_ID}}",
     "occurredAt": "2026-06-23T08:00:00+07:00",
     "source": "mobile_face_recognition",
-    "faceSimilarity": 98.5
+    "faceSimilarity": 98.5,
+    "imageUrl": "PASTE_UPLOAD_DATA_SECURE_URL_HERE"
 }'
 ```
 
@@ -123,7 +142,8 @@ curl --location '{{base_url}}/attendance/check-out' \
     "employeeId": "{{EMPLOYEE_ID}}",
     "occurredAt": "2026-06-23T17:05:00+07:00",
     "source": "mobile_face_recognition",
-    "faceSimilarity": 99.1
+    "faceSimilarity": 99.1,
+    "imageUrl": "PASTE_UPLOAD_DATA_SECURE_URL_HERE"
 }'
 ```
 

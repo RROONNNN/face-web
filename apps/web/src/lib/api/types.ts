@@ -189,10 +189,19 @@ export type AttendanceEvent = {
   longitude?: number | null;
   isOutOfZone?: boolean | null;
   deviceId?: string | null;
+  imageUrl?: string | null;
   createdAt: string;
+  lateMinutes?: number | null;
+  user?: {
+    userName: string;
+    employeeCode: string;
+    department: string | null;
+    jobTitle: string | null;
+  };
 };
 
 export type AuditEntry = {
+  id?: string;
   occurredAt: string;
   source: AttendanceSource;
   deviceId?: string | null;

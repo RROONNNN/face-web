@@ -11,6 +11,7 @@ import type {
   User,
   AttendanceStatus,
   AttendanceRecord,
+  AttendanceEvent,
   AttendanceDashboardData,
   EmployeeAttendanceData,
   LeaveStatus,
@@ -116,6 +117,10 @@ export function getAttendance(query: AttendanceQuery = {}) {
 
 export function getAttendanceRecord(id: string) {
   return authenticatedApiFetch<AttendanceRecord>(`/api/attendance/${id}`);
+}
+
+export function getAttendanceEvent(id: string) {
+  return authenticatedApiFetch<AttendanceEvent>(`/api/attendance/events/${id}`);
 }
 
 export type AttendanceDashboardQuery = {

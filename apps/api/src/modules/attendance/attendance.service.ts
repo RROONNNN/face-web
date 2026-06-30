@@ -80,6 +80,18 @@ type DashboardTotals = {
     noRecord: number;
 };
 
+type AttendanceEventUser = {
+    userName: string;
+    employeeCode: string;
+    department: string | null;
+    jobTitle: string | null;
+};
+
+type AttendanceEventWithUser = AttendanceEvent & {
+    user: AttendanceEventUser;
+    lateMinutes: number | null;
+};
+
 @Injectable()
 export class AttendanceService {
     constructor(
@@ -138,9 +150,28 @@ export class AttendanceService {
         employeeId: string,
         workDate: string,
         manager: EntityManager,
-    ): Promise<{ assignment: EmployeeShiftAssignment; record: AttendanceRecord }> {
+    ): Promise<{
+        assignment: EmployeeShiftAssignment;
+        record: AttendanceRecord;
+        employee: User;
+    }> {
         const assignmentRepo = manager.getRepository(EmployeeShiftAssignment);
         const recordRepo = manager.getRepository(AttendanceRecord);
+
+        const employee = await manager.getRepository(User).findOne({
+            where: { id: employeeId },
+            select: {
+                id: true,
+                employeeCode: true,
+                name: true,
+                department: true,
+                departmentId: true,
+                jobTitle: true,
+            },
+        });
+        if (!employee) {
+            throw new NotFoundException(`Employee ${employeeId} was not found.`);
+        }
 
         let assignment = await assignmentRepo.findOne({
             where: { employeeId, workDate },
@@ -148,11 +179,7 @@ export class AttendanceService {
         });
 
         if (!assignment) {
-            const employee = await manager.getRepository(User).findOne({
-                where: { id: employeeId },
-                select: { id: true, departmentId: true },
-            });
-            if (!employee?.departmentId) {
+            if (!employee.departmentId) {
                 throw new NotFoundException(
                     `Employee ${employeeId} has no department assigned — cannot resolve a shift for ${workDate}.`,
                 );
@@ -192,7 +219,23 @@ export class AttendanceService {
             where: { shiftAssignmentId: assignment.id },
         });
 
-        return { assignment, record };
+        return { assignment, record, employee };
+    }
+
+    private toAttendanceEventWithUser(
+        event: AttendanceEvent,
+        employee: User,
+        lateMinutes: number | null = null,
+    ): AttendanceEventWithUser {
+        return Object.assign(event, {
+            user: {
+                userName: employee.name,
+                employeeCode: employee.employeeCode,
+                department: employee.department,
+                jobTitle: employee.jobTitle,
+            },
+            lateMinutes: event.type === AttendanceEventType.CHECK_IN ? lateMinutes : null,
+        });
     }
 
     /** Build an AttendanceEvent entity (not yet persisted) */
@@ -206,6 +249,7 @@ export class AttendanceService {
             latitude?: number;
             longitude?: number;
             deviceId?: string;
+            imageUrl?: string;
         } = {},
     ): Promise<AttendanceEvent> {
         let isOutOfZone: boolean | null = false;
@@ -227,6 +271,7 @@ export class AttendanceService {
             latitude: opts.latitude ?? null,
             longitude: opts.longitude ?? null,
             deviceId: opts.deviceId ?? null,
+            imageUrl: opts.imageUrl ?? null,
             isOutOfZone,
         });
     }
@@ -235,7 +280,7 @@ export class AttendanceService {
     // Mobile check-in / check-out
     // -------------------------------------------------------------------------
 
-    async checkIn(dto: CheckInDto): Promise<AttendanceRecord> {
+    async checkIn(dto: CheckInDto): Promise<AttendanceEventWithUser> {
         const workDate = this.toWorkDate(dto.occurredAt);
         const occurredAt = new Date(dto.occurredAt);
 
@@ -243,18 +288,25 @@ export class AttendanceService {
             const recordRepo = manager.getRepository(AttendanceRecord);
             const eventRepo = manager.getRepository(AttendanceEvent);
 
-            const { assignment, record } = await this.ensureAssignmentAndRecord(dto.employeeId, workDate, manager);
+            const { assignment, record, employee } = await this.ensureAssignmentAndRecord(
+                dto.employeeId,
+                workDate,
+                manager,
+            );
             await this.leaveReconciliationService.assertAttendanceEventAllowed(
                 manager,
                 assignment,
                 occurredAt,
             );
 
-            await eventRepo.save(
+            const event = await eventRepo.save(
                 await this.createEvent(record.id, AttendanceEventType.CHECK_IN, occurredAt, dto.source, dto),
             );
 
-            record.auditCheckIn = [...(record.auditCheckIn ?? []), { occurredAt, source: dto.source, deviceId: dto.deviceId ?? null }];
+            record.auditCheckIn = [
+                ...(record.auditCheckIn ?? []),
+                { occurredAt, source: dto.source, deviceId: dto.deviceId ?? null },
+            ];
 
             if (!record.checkedInAt) {
                 record.checkedInAt = occurredAt;
@@ -267,11 +319,12 @@ export class AttendanceService {
                 record.checkInSource = dto.source;
             }
 
-            return recordRepo.save(record);
+            await recordRepo.save(record);
+            return this.toAttendanceEventWithUser(event, employee, record.lateMinutes ?? null);
         });
     }
 
-    async checkOut(dto: CheckOutDto): Promise<AttendanceRecord> {
+    async checkOut(dto: CheckOutDto): Promise<AttendanceEventWithUser> {
         const workDate = this.toWorkDate(dto.occurredAt);
         const occurredAt = new Date(dto.occurredAt);
 
@@ -279,7 +332,11 @@ export class AttendanceService {
             const recordRepo = manager.getRepository(AttendanceRecord);
             const eventRepo = manager.getRepository(AttendanceEvent);
 
-            const { assignment, record } = await this.ensureAssignmentAndRecord(dto.employeeId, workDate, manager);
+            const { assignment, record, employee } = await this.ensureAssignmentAndRecord(
+                dto.employeeId,
+                workDate,
+                manager,
+            );
             await this.leaveReconciliationService.assertAttendanceEventAllowed(
                 manager,
                 assignment,
@@ -292,14 +349,15 @@ export class AttendanceService {
                 );
             }
 
-            await eventRepo.save(
+            const event = await eventRepo.save(
                 await this.createEvent(record.id, AttendanceEventType.CHECK_OUT, occurredAt, dto.source, dto),
             );
             record.auditCheckOut = [...(record.auditCheckOut ?? []), { occurredAt, source: dto.source, deviceId: dto.deviceId ?? null }];
             record.checkedOutAt = occurredAt;
             record.status = AttendanceStatus.COMPLETED;
             record.checkOutSource = dto.source;
-            return recordRepo.save(record);
+            await recordRepo.save(record);
+            return this.toAttendanceEventWithUser(event, employee);
         });
     }
 
@@ -553,6 +611,34 @@ export class AttendanceService {
         await this.enrichRecordsWithAuditEvents([record]);
 
         return record;
+    }
+
+    async findOneEvent(id: string): Promise<AttendanceEventWithUser> {
+        const event = await this.eventRepo.findOne({ where: { id } });
+
+        if (!event) {
+            throw new NotFoundException(`Attendance event ${id} not found.`);
+        }
+
+        const record = await this.recordRepo
+            .createQueryBuilder('record')
+            .leftJoin('record.employee', 'employee')
+            .addSelect([
+                'employee.id',
+                'employee.employeeCode',
+                'employee.name',
+                'employee.department',
+                'employee.departmentId',
+                'employee.jobTitle',
+            ])
+            .where('record.id = :id', { id: event.attendanceRecordId })
+            .getOne();
+
+        if (!record?.employee) {
+            throw new NotFoundException(`Attendance record ${event.attendanceRecordId} not found.`);
+        }
+
+        return this.toAttendanceEventWithUser(event, record.employee, record.lateMinutes ?? null);
     }
 
     async getAdminDashboard(query: QueryAttendanceDashboardDto): Promise<{
@@ -931,6 +1017,7 @@ export class AttendanceService {
         return events
             .filter((event) => event.type === type)
             .map((event) => ({
+                id: event.id,
                 occurredAt: event.occurredAt,
                 source: event.source,
                 deviceId: event.deviceId ?? null,
@@ -940,22 +1027,21 @@ export class AttendanceService {
             }));
     }
 
-    private normalizeStoredAuditEntries(
-        entries: unknown,
-        fallbackSource?: AttendanceSource | null,
-    ): AuditEntry[] {
+    private normalizeStoredAuditEntries(entries: unknown, fallbackSource?: AttendanceSource | null): AuditEntry[] {
         if (!Array.isArray(entries) || !fallbackSource) return [];
 
         return entries.flatMap((entry) => {
             if (entry instanceof Date || typeof entry === 'string') {
-                return [{
-                    occurredAt: new Date(entry),
-                    source: fallbackSource,
-                    deviceId: null,
-                    latitude: null,
-                    longitude: null,
-                    isOutOfZone: null,
-                }];
+                return [
+                    {
+                        occurredAt: new Date(entry),
+                        source: fallbackSource,
+                        deviceId: null,
+                        latitude: null,
+                        longitude: null,
+                        isOutOfZone: null,
+                    },
+                ];
             }
 
             if (!entry || typeof entry !== 'object') return [];
@@ -963,14 +1049,16 @@ export class AttendanceService {
             const value = entry as Partial<AuditEntry>;
             if (!value.occurredAt) return [];
 
-            return [{
-                occurredAt: new Date(value.occurredAt),
-                source: value.source ?? fallbackSource,
-                deviceId: value.deviceId ?? null,
-                latitude: value.latitude ?? null,
-                longitude: value.longitude ?? null,
-                isOutOfZone: value.isOutOfZone ?? null,
-            }];
+            return [
+                {
+                    occurredAt: new Date(value.occurredAt),
+                    source: value.source ?? fallbackSource,
+                    deviceId: value.deviceId ?? null,
+                    latitude: value.latitude ?? null,
+                    longitude: value.longitude ?? null,
+                    isOutOfZone: value.isOutOfZone ?? null,
+                },
+            ];
         });
     }
 

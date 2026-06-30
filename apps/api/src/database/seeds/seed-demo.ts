@@ -1,8 +1,7 @@
-import 'dotenv/config';
 import * as bcrypt from 'bcrypt';
+import 'dotenv/config';
 import { In } from 'typeorm';
 
-import dataSource from '../data-source';
 import { AttendanceEvent } from '../../modules/attendance/entities/attendance-event.entity';
 import {
   AttendanceRecord,
@@ -18,6 +17,7 @@ import { ShiftWorkPeriod } from '../../modules/shifts/entities/shift-work-period
 import { Shift } from '../../modules/shifts/entities/shift.entity';
 import { ShiftAssignmentSource } from '../../modules/shifts/enums/shift-assignment-source.enum';
 import { User } from '../../modules/users/entities/user.entity';
+import dataSource from '../data-source';
 
 const DEMO_PASSWORD = process.env.DEMO_USER_PASSWORD ?? 'Demo@123';
 const DEMO_TIME_ZONE_OFFSET = process.env.DEMO_TIME_ZONE_OFFSET ?? '+07:00';
@@ -233,7 +233,7 @@ const attendanceVariants: AttendanceVariant[] = [
     status: AttendanceStatus.COMPLETED,
     checkInOffsetMinutes: 18,
     checkOutOffsetMinutes: 0,
-    source: AttendanceSource.FINGERPRINT_DEVICE,
+    source: AttendanceSource.MOBILE_FACE_RECOGNITION,
   },
   {
     label: 'checked in only',
@@ -459,16 +459,16 @@ async function upsertAttendanceRecord(
     variant.checkInOffsetMinutes === undefined
       ? null
       : addMinutes(
-          expectedCheckInAt,
-          variant.checkInOffsetMinutes + (userIndex % 3),
-        );
+        expectedCheckInAt,
+        variant.checkInOffsetMinutes + (userIndex % 3),
+      );
   const checkedOutAt =
     variant.checkOutOffsetMinutes === undefined
       ? null
       : addMinutes(
-          expectedCheckOutAt,
-          variant.checkOutOffsetMinutes - (userIndex % 2),
-        );
+        expectedCheckOutAt,
+        variant.checkOutOffsetMinutes - (userIndex % 2),
+      );
   const isInvalid = variant.status === AttendanceStatus.INVALID;
   const auditCheckIn = checkedInAt
     ? [buildAuditEntry(checkedInAt, source, userIndex, isInvalid)]
@@ -502,9 +502,9 @@ async function upsertAttendanceRecord(
   record.checkOutSource = checkedOutAt ? source : null;
   record.lateMinutes = checkedInAt
     ? Math.max(
-        0,
-        minutesBetween(expectedCheckInAt, checkedInAt) - shift.lateGraceMinutes,
-      )
+      0,
+      minutesBetween(expectedCheckInAt, checkedInAt) - shift.lateGraceMinutes,
+    )
     : 0;
 
   record = await recordRepo.save(record);

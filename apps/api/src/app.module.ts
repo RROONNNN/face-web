@@ -12,6 +12,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
 import { LoggerMiddleware } from './common/logger.middleware';
 import { databaseConfig } from './config/database.config';
 import { jwtConfig } from './config/jwt.config';
+import { cloudinaryConfig } from './config/cloudinary.config';
 import { AttendanceModule } from './modules/attendance/attendance.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DepartmentsModule } from './modules/departments/departments.module';
@@ -21,13 +22,14 @@ import { ShiftsModule } from './modules/shifts/shifts.module';
 import { UsersModule } from './modules/users/users.module';
 import { HolidaysModule } from './modules/holidays/holidays.module';
 import { FaceModule } from './modules/face/face.module';
+import { UploadsModule } from './modules/uploads/uploads.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['../../.env', '.env'],
-      load: [databaseConfig, jwtConfig],
+      load: [databaseConfig, jwtConfig, cloudinaryConfig],
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
@@ -53,6 +55,7 @@ import { FaceModule } from './modules/face/face.module';
     ScheduleModule.forRoot(),
     HolidaysModule,
     FaceModule,
+    UploadsModule,
   ],
   controllers: [AppController],
   providers: [
@@ -79,5 +82,4 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer.apply(LoggerMiddleware).forRoutes('*');
   }
-
 }

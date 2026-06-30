@@ -958,7 +958,7 @@ tr:last-child td {
   gap: 8px;
 }
 
-.employee-profile-meta > span:not(.badge) {
+.employee-profile-meta>span:not(.badge) {
   min-height: 28px;
   display: inline-flex;
   align-items: center;
@@ -1389,7 +1389,7 @@ tr:last-child td {
   margin-bottom: 18px;
 }
 
-.settings-panel > summary {
+.settings-panel>summary {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1405,26 +1405,26 @@ tr:last-child td {
   user-select: none;
 }
 
-.settings-panel > summary::-webkit-details-marker {
+.settings-panel>summary::-webkit-details-marker {
   display: none;
 }
 
-.settings-panel > summary::before {
+.settings-panel>summary::before {
   content: '▶';
   font-size: 0.65rem;
   color: var(--muted-foreground);
   transition: transform 0.15s;
 }
 
-.settings-panel[open] > summary {
+.settings-panel[open]>summary {
   border-radius: 8px 8px 0 0;
 }
 
-.settings-panel[open] > summary::before {
+.settings-panel[open]>summary::before {
   transform: rotate(90deg);
 }
 
-.settings-panel > .action-grid {
+.settings-panel>.action-grid {
   padding: 14px;
   border: 1px solid var(--border);
   border-top: 0;
@@ -1776,7 +1776,7 @@ tr:last-child td {
   gap: 14px;
 }
 
-.dashboard-actions > div {
+.dashboard-actions>div {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -1908,6 +1908,7 @@ tr:last-child td {
 }
 
 @media (max-width: 560px) {
+
   .auth-panel,
   .admin-content,
   .admin-topbar {
@@ -1961,8 +1962,8 @@ tr:last-child td {
     width: 100%;
   }
 
-  .employee-detail-actions > *,
-  .employee-calendar-controls > *,
+  .employee-detail-actions>*,
+  .employee-calendar-controls>*,
   .month-picker-form input,
   .month-picker-form button {
     flex: 1 1 auto;

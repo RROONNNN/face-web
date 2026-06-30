@@ -27,4 +27,8 @@ export class CheckOutDto {
   @IsOptional()
   @IsString()
   deviceId?: string;
+
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
 }

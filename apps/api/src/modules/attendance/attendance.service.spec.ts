@@ -35,6 +35,7 @@ describe('AttendanceService', () => {
         orderBy: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue([
           {
+            id: 'event-check-in',
             attendanceRecordId: 'record-1',
             type: AttendanceEventType.CHECK_IN,
             occurredAt: new Date('2026-06-23T01:09:00.000Z'),
@@ -45,11 +46,12 @@ describe('AttendanceService', () => {
             isOutOfZone: false,
           },
           {
+            id: 'event-check-out',
             attendanceRecordId: 'record-1',
             type: AttendanceEventType.CHECK_OUT,
             occurredAt: new Date('2026-06-23T10:26:00.000Z'),
-            source: AttendanceSource.FINGERPRINT_DEVICE,
-            deviceId: 'fingerprint-1',
+            source: AttendanceSource.MOBILE_FACE_RECOGNITION,
+            deviceId: 'mobile-1',
             latitude: null,
             longitude: null,
             isOutOfZone: null,
@@ -112,6 +114,7 @@ describe('AttendanceService', () => {
       });
       expect(result.items[0].auditCheckIn).toEqual([
         {
+          id: 'event-check-in',
           occurredAt: new Date('2026-06-23T01:09:00.000Z'),
           source: AttendanceSource.MOBILE_FACE_RECOGNITION,
           deviceId: 'mobile-1',
@@ -122,9 +125,10 @@ describe('AttendanceService', () => {
       ]);
       expect(result.items[0].auditCheckOut).toEqual([
         {
+          id: 'event-check-out',
           occurredAt: new Date('2026-06-23T10:26:00.000Z'),
-          source: AttendanceSource.FINGERPRINT_DEVICE,
-          deviceId: 'fingerprint-1',
+          source: AttendanceSource.MOBILE_FACE_RECOGNITION,
+          deviceId: 'mobile-1',
           latitude: null,
           longitude: null,
           isOutOfZone: null,

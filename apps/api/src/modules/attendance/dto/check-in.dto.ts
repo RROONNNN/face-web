@@ -28,4 +28,9 @@ export class CheckInDto {
   @IsOptional()
   @IsString()
   deviceId?: string;
+
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
+
 }

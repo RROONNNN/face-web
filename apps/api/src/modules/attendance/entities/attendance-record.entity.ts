@@ -5,6 +5,7 @@ import { AttendanceSource } from "../enums/attendance-source.enum";
 import { AttendanceStatus } from "../enums/attendance-status.enum";
 
 export interface AuditEntry {
+    id?: string;
     occurredAt: Date;
     source: AttendanceSource;
     deviceId?: string | null;

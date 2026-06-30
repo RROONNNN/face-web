@@ -44,4 +44,7 @@ export class AttendanceEvent {
 
     @CreateDateColumn({ name: 'created_at' })
     createdAt!: Date;
+
+    @Column({ name: 'image_url', type: 'varchar', nullable: true })
+    imageUrl?: string | null;
 }

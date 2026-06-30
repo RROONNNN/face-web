@@ -66,6 +66,12 @@ export class AttendanceController {
         return this.attendanceService.getAdminDashboard(query);
     }
 
+    @Get('events/:id')
+    @AccountRoles([AccountRole.Admin])
+    findOneEvent(@Param('id', ParseUUIDPipe) id: string) {
+        return this.attendanceService.findOneEvent(id);
+    }
+
     @Post('admin/finalize-day')
     @AccountRoles([AccountRole.Admin])
     finalizeDay(@Body('workDate') workDate: string) {
