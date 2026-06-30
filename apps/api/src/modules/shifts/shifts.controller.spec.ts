@@ -5,6 +5,13 @@ import { ShiftsService } from './shifts.service';
 
 describe('ShiftsController', () => {
   let controller: ShiftsController;
+  const shiftsService = {
+    findAllShifts: jest.fn(),
+    findDepartmentDefaultShift: jest.fn(),
+    createShift: jest.fn(),
+    updateShift: jest.fn(),
+    deactivateShift: jest.fn(),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -12,12 +19,7 @@ describe('ShiftsController', () => {
       providers: [
         {
           provide: ShiftsService,
-          useValue: {
-            findAllShifts: jest.fn(),
-            createShift: jest.fn(),
-            updateShift: jest.fn(),
-            deactivateShift: jest.fn(),
-          },
+          useValue: shiftsService,
         },
         {
           provide: ShiftAssignmentSchedulerService,
@@ -30,9 +32,18 @@ describe('ShiftsController', () => {
     }).compile();
 
     controller = module.get<ShiftsController>(ShiftsController);
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+
+  it('delegates department default shift lookup by employee id', () => {
+    controller.findDepartmentDefaultShift('employee-id');
+
+    expect(shiftsService.findDepartmentDefaultShift).toHaveBeenCalledWith(
+      'employee-id',
+    );
   });
 });

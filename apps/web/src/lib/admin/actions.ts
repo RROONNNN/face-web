@@ -10,7 +10,16 @@ import {
 } from '@/lib/admin/form';
 import { authenticatedApiFetch } from '@/lib/api/authenticated';
 import { toQueryString } from '@/lib/api/query';
-import type { Department, FaceImportSummary, GeofenceConfig, Shift, User } from '@/lib/api/types';
+import type {
+  Department,
+  FaceImportSummary,
+  GeofenceConfig,
+  Holiday,
+  HolidayImportSummary,
+  LeaveRequest,
+  Shift,
+  User,
+} from '@/lib/api/types';
 import { getSession } from '@/lib/auth/session';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -185,16 +194,19 @@ export async function createDepartmentAction(formData: FormData) {
   let location = '/departments/new';
 
   try {
-    const department = await authenticatedApiFetch<Department>('/api/departments', {
-      method: 'POST',
-      body: compactBody({
-        code: requiredString(formData.get('code')).toUpperCase(),
-        name: requiredString(formData.get('name')),
-        description: optionalString(formData.get('description')),
-        isActive: checkboxValue(formData, 'isActive'),
-        defaultShiftId: requiredString(formData.get('defaultShiftId')),
-      }),
-    });
+    const department = await authenticatedApiFetch<Department>(
+      '/api/departments',
+      {
+        method: 'POST',
+        body: compactBody({
+          code: requiredString(formData.get('code')).toUpperCase(),
+          name: requiredString(formData.get('name')),
+          description: optionalString(formData.get('description')),
+          isActive: checkboxValue(formData, 'isActive'),
+          defaultShiftId: requiredString(formData.get('defaultShiftId')),
+        }),
+      },
+    );
 
     revalidatePath('/departments');
     location = `/departments/${department.id}${encodeNotice({ success: 'Department created.' })}`;
@@ -270,9 +282,12 @@ export async function generateShiftAssignmentsAction(formData: FormData) {
       employeeId: optionalString(formData.get('employeeId')),
     });
 
-    await authenticatedApiFetch(`/api/shifts/assignments/generate${queryString}`, {
-      method: 'POST',
-    });
+    await authenticatedApiFetch(
+      `/api/shifts/assignments/generate${queryString}`,
+      {
+        method: 'POST',
+      },
+    );
 
     revalidatePath('/shift-assignments');
     location = `/shift-assignments${encodeNotice({ success: 'Assignments generated.' })}`;
@@ -283,13 +298,19 @@ export async function generateShiftAssignmentsAction(formData: FormData) {
   redirect(location);
 }
 
-function compactBody<T extends Record<string, unknown>>(body: T): Record<string, unknown> {
+function compactBody<T extends Record<string, unknown>>(
+  body: T,
+): Record<string, unknown> {
   return Object.fromEntries(
-    Object.entries(body).filter(([, value]) => value !== undefined && value !== ''),
+    Object.entries(body).filter(
+      ([, value]) => value !== undefined && value !== '',
+    ),
   );
 }
 
-function nullableNumber(value: FormDataEntryValue | null): number | null | undefined {
+function nullableNumber(
+  value: FormDataEntryValue | null,
+): number | null | undefined {
   const text = String(value ?? '').trim();
 
   if (!text) {
@@ -309,7 +330,8 @@ function buildOccurredAt(workDate: string, timeStr: string): string {
 
 export async function adminCheckInAction(formData: FormData) {
   await requireAdmin();
-  const returnPath = safeReturnPath(formData.get('returnPath')) ?? '/attendance';
+  const returnPath =
+    safeReturnPath(formData.get('returnPath')) ?? '/attendance';
   let location = returnPath;
 
   try {
@@ -330,7 +352,10 @@ export async function adminCheckInAction(formData: FormData) {
 
     revalidatePath('/attendance');
     revalidatePath(revalidationPath(returnPath));
-    location = appendNotice(returnPath, encodeNotice({ success: 'Manual check-in successful.' }));
+    location = appendNotice(
+      returnPath,
+      encodeNotice({ success: 'Manual check-in successful.' }),
+    );
   } catch (error) {
     location = appendNotice(returnPath, encodeNotice({ error }));
   }
@@ -340,7 +365,8 @@ export async function adminCheckInAction(formData: FormData) {
 
 export async function adminCheckOutAction(formData: FormData) {
   await requireAdmin();
-  const returnPath = safeReturnPath(formData.get('returnPath')) ?? '/attendance';
+  const returnPath =
+    safeReturnPath(formData.get('returnPath')) ?? '/attendance';
   let location = returnPath;
 
   try {
@@ -360,7 +386,10 @@ export async function adminCheckOutAction(formData: FormData) {
 
     revalidatePath('/attendance');
     revalidatePath(revalidationPath(returnPath));
-    location = appendNotice(returnPath, encodeNotice({ success: 'Manual check-out successful.' }));
+    location = appendNotice(
+      returnPath,
+      encodeNotice({ success: 'Manual check-out successful.' }),
+    );
   } catch (error) {
     location = appendNotice(returnPath, encodeNotice({ error }));
   }
@@ -398,7 +427,8 @@ function appendNotice(path: string, notice: string): string {
 
 export async function finalizeDayAction(formData: FormData) {
   await requireAdmin();
-  const returnPath = safeReturnPath(formData.get('returnPath')) ?? '/attendance';
+  const returnPath =
+    safeReturnPath(formData.get('returnPath')) ?? '/attendance';
   let location = returnPath;
 
   try {
@@ -411,7 +441,78 @@ export async function finalizeDayAction(formData: FormData) {
 
     revalidatePath('/attendance');
     revalidatePath(revalidationPath(returnPath));
-    location = appendNotice(returnPath, encodeNotice({ success: 'Day finalized.' }));
+    location = appendNotice(
+      returnPath,
+      encodeNotice({ success: 'Day finalized.' }),
+    );
+  } catch (error) {
+    location = appendNotice(returnPath, encodeNotice({ error }));
+  }
+
+  redirect(location);
+}
+
+export async function createLeaveRequestAction(formData: FormData) {
+  await requireAdmin();
+
+  let location = '/leave-requests';
+
+  try {
+    const partialWorkDate = optionalString(formData.get('partialWorkDate'));
+    const partialWorkPeriodIds = formData
+      .getAll('partialWorkPeriodIds')
+      .map((value) => String(value).trim())
+      .filter(Boolean);
+
+    const leaveRequest = await authenticatedApiFetch<LeaveRequest>(
+      '/api/leave',
+      {
+        method: 'POST',
+        body: compactBody({
+          employeeId: requiredString(formData.get('employeeId')),
+          startDate: requiredString(formData.get('startDate')),
+          endDate: requiredString(formData.get('endDate')),
+          reason: requiredString(formData.get('reason')),
+          partialDays:
+            partialWorkDate && partialWorkPeriodIds.length > 0
+              ? [
+                  {
+                    workDate: partialWorkDate,
+                    workPeriodIds: partialWorkPeriodIds,
+                  },
+                ]
+              : undefined,
+        }),
+      },
+    );
+
+    revalidatePath('/leave-requests');
+    location = `/leave-requests/${leaveRequest.id}${encodeNotice({ success: 'Leave request created.' })}`;
+  } catch (error) {
+    location = `/leave-requests${encodeNotice({ error })}`;
+  }
+
+  redirect(location);
+}
+
+export async function cancelLeaveAction(formData: FormData) {
+  await requireAdmin();
+  const id = requiredString(formData.get('id'));
+  const returnPath =
+    safeReturnPath(formData.get('returnPath')) ?? `/leave-requests/${id}`;
+  let location = returnPath;
+
+  try {
+    await authenticatedApiFetch(`/api/leave/${id}/cancel`, {
+      method: 'PUT',
+    });
+
+    revalidatePath('/leave-requests');
+    revalidatePath(`/leave-requests/${id}`);
+    location = appendNotice(
+      returnPath,
+      encodeNotice({ success: 'Leave request cancelled.' }),
+    );
   } catch (error) {
     location = appendNotice(returnPath, encodeNotice({ error }));
   }
@@ -486,20 +587,119 @@ export async function upsertGeofenceConfigAction(formData: FormData) {
   redirect(location);
 }
 
+export async function createHolidayAction(formData: FormData) {
+  await requireAdmin();
+
+  let location = '/holidays';
+
+  try {
+    await authenticatedApiFetch<Holiday>('/api/holidays', {
+      method: 'POST',
+      body: compactBody({
+        date: requiredString(formData.get('date')),
+        name: requiredString(formData.get('name')),
+        description: optionalString(formData.get('description')),
+      }),
+    });
+
+    revalidatePath('/holidays');
+    location = `/holidays${encodeNotice({ success: 'Holiday created.' })}`;
+  } catch (error) {
+    location = `/holidays${encodeNotice({ error })}`;
+  }
+
+  redirect(location);
+}
+
+export async function updateHolidayAction(formData: FormData) {
+  await requireAdmin();
+
+  let location = '/holidays';
+
+  try {
+    const id = requiredString(formData.get('id'));
+    await authenticatedApiFetch<Holiday>(`/api/holidays/${id}`, {
+      method: 'PATCH',
+      body: compactBody({
+        date: requiredString(formData.get('date')),
+        name: requiredString(formData.get('name')),
+        description: optionalString(formData.get('description')),
+      }),
+    });
+
+    revalidatePath('/holidays');
+    location = `/holidays${encodeNotice({ success: 'Holiday updated.' })}`;
+  } catch (error) {
+    location = `/holidays${encodeNotice({ error })}`;
+  }
+
+  redirect(location);
+}
+
+export async function deleteHolidayAction(formData: FormData) {
+  await requireAdmin();
+
+  let location = '/holidays';
+
+  try {
+    const id = requiredString(formData.get('id'));
+    await authenticatedApiFetch(`/api/holidays/${id}`, {
+      method: 'DELETE',
+    });
+
+    revalidatePath('/holidays');
+    location = `/holidays${encodeNotice({ success: 'Holiday deleted.' })}`;
+  } catch (error) {
+    location = `/holidays${encodeNotice({ error })}`;
+  }
+
+  redirect(location);
+}
+
+export async function importHolidaysAction(formData: FormData) {
+  await requireAdmin();
+
+  let location = '/holidays';
+
+  try {
+    const file = requiredFile(formData.get('file'), 'Excel file');
+    const upload = new FormData();
+    upload.set('file', file);
+
+    const summary = await authenticatedApiFetch<HolidayImportSummary>(
+      '/api/holidays/import',
+      {
+        method: 'POST',
+        body: upload,
+      },
+    );
+
+    revalidatePath('/holidays');
+    location = `/holidays${encodeNotice({ success: formatHolidayImportSummary(summary) })}`;
+  } catch (error) {
+    location = `/holidays${encodeNotice({ error })}`;
+  }
+
+  redirect(location);
+}
+
 export async function importEmployeeFacesAction(formData: FormData) {
   await requireAdmin();
 
   let location = '/employee-faces';
 
   try {
-    const file = requiredFile(formData.get('file'));
+    const file = requiredFile(formData.get('file'), 'JSON file');
     const upload = new FormData();
     upload.set('file', file);
 
-    const summary = await authenticatedApiFetch<FaceImportSummary>('/api/face/sync/file', {
-      method: 'POST',
-      body: upload,
-    });
+    const summary = await authenticatedApiFetch<FaceImportSummary>(
+      '/api/face/sync/file',
+      {
+        method: 'POST',
+        body: upload,
+      },
+    );
 
     revalidatePath('/employee-faces');
     location = `/employee-faces${encodeNotice({ success: formatFaceImportSummary(summary) })}`;
@@ -530,12 +730,18 @@ export async function deleteEmployeeFaceAction(formData: FormData) {
   redirect(location);
 }
 
-function requiredFile(value: FormDataEntryValue | null): File {
+function requiredFile(value: FormDataEntryValue | null, label: string): File {
   if (!(value instanceof File) || value.size === 0) {
-    throw new Error('JSON file is required.');
+    throw new Error(`${label} is required.`);
   }
 
   return value;
+}
+
+function formatHolidayImportSummary(summary: HolidayImportSummary): string {
+  const issueCount = summary.errors.length;
+
+  return `Imported holidays (${summary.created} created, ${summary.updated} updated, ${summary.skipped} skipped, ${issueCount} issues).`;
 }
 
 function formatFaceImportSummary(summary: FaceImportSummary): string {

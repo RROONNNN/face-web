@@ -10,6 +10,7 @@ import { PaginatedResponse } from '../../common/interfaces/paginated-response.in
 import { AttendanceRecord } from '../attendance/entities/attendance-record.entity';
 import { AccountRole } from '../auth/account-role.enum';
 import { CurrentUser } from '../auth/current-user.interface';
+import { Department } from '../departments/entities/department.entity';
 import { Holiday } from '../holidays/entities/holiday.entity';
 import { EmployeeShiftAssignment } from '../shifts/entities/employee-shift-assignment.entity';
 import { ShiftWorkPeriod } from '../shifts/entities/shift-work-period.entity';
@@ -48,6 +49,7 @@ export class LeaveService {
     input: CreateLeaveRequestDto,
     currentUser: CurrentUser,
   ): Promise<LeaveRequestResponse> {
+    const employeeId = this.resolveCreateEmployeeId(input, currentUser);
     const dates = this.enumerateDates(input.startDate, input.endDate);
     const today = this.todayWorkDate();
     if (input.startDate < today) {
@@ -58,7 +60,7 @@ export class LeaveService {
     }
 
     return this.runSerializable(async (manager) => {
-      await this.ensureActiveEmployee(manager, currentUser.id);
+      const employee = await this.ensureActiveEmployee(manager, employeeId);
 
       const holidays = await manager.getRepository(Holiday).find({
         where: dates.map((d) => ({ date: d })),
@@ -72,13 +74,17 @@ export class LeaveService {
         );
       }
 
-      const partialDays = await this.preparePartialDays(
-        manager,
-        workDates,
-        input.partialDays ?? [],
-        currentUser.id,
-        input.departmentShiftId,
-      );
+      const partialDayInput = input.partialDays ?? [];
+      const partialDays =
+        partialDayInput.length === 0
+          ? new Map()
+          : await this.preparePartialDays(
+            manager,
+            workDates,
+            partialDayInput,
+            employeeId,
+            await this.resolveEmployeeDepartmentShiftId(manager, employee),
+          );
       const proposedDays = workDates.map((workDate) => {
         const partial = partialDays.get(workDate);
         return {
@@ -88,12 +94,12 @@ export class LeaveService {
         };
       });
 
-      await this.assertNoOverlap(manager, currentUser.id, proposedDays);
+      await this.assertNoOverlap(manager, employeeId, proposedDays);
 
       const requestRepository = manager.getRepository(LeaveRequest);
       const leaveRequest = await requestRepository.save(
         requestRepository.create({
-          employeeId: currentUser.id,
+          employeeId,
           startDate: input.startDate,
           endDate: input.endDate,
           reason: input.reason,
@@ -152,7 +158,8 @@ export class LeaveService {
   ): Promise<LeaveRequestResponse> {
     return this.dataSource.transaction(async (manager) => {
       const request = await this.loadLockedRequest(manager, id);
-      if (request.employeeId !== currentUser.id) {
+      const isAdmin = currentUser.roles.includes(AccountRole.Admin);
+      if (!isAdmin && request.employeeId !== currentUser.id) {
         throw new ForbiddenException(
           'You can only cancel your own leave requests.',
         );
@@ -199,7 +206,9 @@ export class LeaveService {
               workDate: day.workDate,
               source: ShiftAssignmentSource.DEPARTMENT_DEFAULT,
               assignedByUserId: currentUser.id,
-              leaveShiftWorkPeriodIds: day.requestedPeriods.map((period) => period.workPeriodId),
+              leaveShiftWorkPeriodIds: day.requestedPeriods.map(
+                (period) => period.workPeriodId,
+              ),
             }),
           );
         }
@@ -285,6 +294,30 @@ export class LeaveService {
       items: requests.map((request) => this.toResponse(request)),
       meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
+  }
+
+  private resolveCreateEmployeeId(
+    input: CreateLeaveRequestDto,
+    currentUser: CurrentUser,
+  ): string {
+    const isAdmin = currentUser.roles.includes(AccountRole.Admin);
+
+    if (isAdmin) {
+      if (!input.employeeId) {
+        throw new BadRequestException(
+          'employeeId is required for admin leave creation.',
+        );
+      }
+      return input.employeeId;
+    }
+
+    if (input.employeeId && input.employeeId !== currentUser.id) {
+      throw new ForbiddenException(
+        'You can only create your own leave requests.',
+      );
+    }
+
+    return currentUser.id;
   }
 
   private async preparePartialDays(
@@ -428,18 +461,42 @@ export class LeaveService {
   private async ensureActiveEmployee(
     manager: EntityManager,
     employeeId: string,
-  ): Promise<void> {
+  ): Promise<Pick<User, 'id' | 'departmentId'>> {
     const employee = await manager.getRepository(User).findOne({
       where: {
         id: employeeId,
         accountRole: AccountRole.Employee,
         isActive: true,
       },
-      select: { id: true },
+      select: { id: true, departmentId: true },
     });
     if (!employee) {
       throw new ForbiddenException('An active employee account is required.');
     }
+    return employee;
+  }
+
+  private async resolveEmployeeDepartmentShiftId(
+    manager: EntityManager,
+    employee: Pick<User, 'id' | 'departmentId'>,
+  ): Promise<string> {
+    if (!employee.departmentId) {
+      throw new BadRequestException(
+        `Employee ${employee.id} has no department assigned.`,
+      );
+    }
+
+    const department = await manager.getRepository(Department).findOne({
+      where: { id: employee.departmentId, isActive: true },
+      select: { id: true, defaultShiftId: true },
+    });
+    if (!department?.defaultShiftId) {
+      throw new BadRequestException(
+        `Employee ${employee.id}'s department has no default shift.`,
+      );
+    }
+
+    return department.defaultShiftId;
   }
 
   private async runSerializable<T>(

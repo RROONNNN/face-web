@@ -22,7 +22,7 @@ import { CheckOutDto } from './dto/check-out.dto';
 import { QueryAttendanceDashboardDto } from './dto/query-attendance-dashboard.dto';
 import { QueryAttendanceDto } from './dto/query-attendance.dto';
 import { QueryByEmployeeAttendanceDto } from './dto/query-by-employee-attendance.dto';
-import { SyncCheckInDto, SyncCheckOutDto } from './dto/sync-event.dto';
+import { SyncCheckInOutDto } from './dto/sync-event.dto';
 import { AttendanceEvent } from './entities/attendance-event.entity';
 import { AttendanceRecord, AuditEntry } from './entities/attendance-record.entity';
 import { AttendanceEventType } from './enums/attendance-event.type';
@@ -477,8 +477,8 @@ export class AttendanceService {
         );
     }
 
-    async syncCheckIn(
-        events: SyncCheckInDto[],
+    async syncCheckInOut(
+        events: SyncCheckInOutDto[],
     ): Promise<{ failedLocalIds: string[] }> {
         const failedLocalIds: string[] = [];
 
@@ -486,50 +486,32 @@ export class AttendanceService {
             try {
                 const workDate = this.toWorkDate(item.occurredAt);
                 const occurredAt = new Date(item.occurredAt);
+                const eventType = item.isCheckIn ? AttendanceEventType.CHECK_IN : AttendanceEventType.CHECK_OUT;
 
-                if (await this.isDuplicateEvent(item.employeeId, workDate, AttendanceEventType.CHECK_IN, occurredAt)) {
+                if (await this.isDuplicateEvent(item.employeeId, workDate, eventType, occurredAt)) {
                     continue;
                 }
 
-                await this.checkIn({
-                    occurredAt: item.occurredAt,
-                    source: item.source,
-                    faceSimilarity: item.faceSimilarity,
-                    latitude: item.latitude,
-                    longitude: item.longitude,
-                    deviceId: item.deviceId,
-                    employeeId: item.employeeId,
-                });
-            } catch {
-                failedLocalIds.push(item.localId);
-            }
-        }
-
-        return { failedLocalIds };
-    }
-
-    async syncCheckOut(
-        events: SyncCheckOutDto[],
-    ): Promise<{ failedLocalIds: string[] }> {
-        const failedLocalIds: string[] = [];
-
-        for (const item of events) {
-            try {
-                const workDate = this.toWorkDate(item.occurredAt);
-                const occurredAt = new Date(item.occurredAt);
-
-                if (await this.isDuplicateEvent(item.employeeId, workDate, AttendanceEventType.CHECK_OUT, occurredAt)) {
-                    continue;
+                if (item.isCheckIn) {
+                    await this.checkIn({
+                        occurredAt: item.occurredAt,
+                        source: item.source,
+                        faceSimilarity: item.faceSimilarity,
+                        latitude: item.latitude,
+                        longitude: item.longitude,
+                        deviceId: item.deviceId,
+                        employeeId: item.employeeId,
+                    });
+                } else {
+                    await this.checkOut({
+                        occurredAt: item.occurredAt,
+                        source: item.source,
+                        latitude: item.latitude,
+                        longitude: item.longitude,
+                        deviceId: item.deviceId,
+                        employeeId: item.employeeId,
+                    });
                 }
-
-                await this.checkOut({
-                    occurredAt: item.occurredAt,
-                    source: item.source,
-                    latitude: item.latitude,
-                    longitude: item.longitude,
-                    deviceId: item.deviceId,
-                    employeeId: item.employeeId,
-                });
             } catch {
                 failedLocalIds.push(item.localId);
             }

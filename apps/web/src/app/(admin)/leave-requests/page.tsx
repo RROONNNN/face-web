@@ -5,9 +5,16 @@ import { Notice } from '@/components/admin/notice';
 import { PageHeader } from '@/components/admin/page-header';
 import { Pagination } from '@/components/admin/pagination';
 import { StatusBadge } from '@/components/admin/status-badge';
-import { firstParam, numberParam } from '@/lib/api/query';
+import { firstParam, numberParam, toQueryString } from '@/lib/api/query';
 import type { LeaveStatus } from '@/lib/api/types';
-import { getLeaveRequests, getUsers } from '@/lib/admin/data';
+import {
+  getDepartments,
+  getLeaveRequests,
+  getShifts,
+  getUsers,
+} from '@/lib/admin/data';
+import { LeaveActionButtons } from './[id]/leave-actions';
+import { LeaveRequestCreateForm } from './leave-request-create-form';
 
 type LeaveRequestsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -30,14 +37,35 @@ export default async function LeaveRequestsPage({
     status: firstParam(params.status) as LeaveStatus | undefined,
   };
 
-  const [leaveRequests, employees] = await Promise.all([
+  const [leaveRequests, employees, shifts, departments] = await Promise.all([
     getLeaveRequests(query),
-    getUsers({ limit: 100, isActive: true, sortBy: 'name', sortOrder: 'ASC' }),
+    getUsers({
+      limit: 100,
+      accountRole: 'employee',
+      isActive: true,
+      sortBy: 'name',
+      sortOrder: 'ASC',
+    }),
+    getShifts({ limit: 100, isActive: true, sortBy: 'name', sortOrder: 'ASC' }),
+    getDepartments({
+      limit: 100,
+      isActive: true,
+      sortBy: 'name',
+      sortOrder: 'ASC',
+    }),
   ]);
+  const returnPath = `/leave-requests${toQueryString(query)}`;
 
   return (
     <main className="admin-content">
       <PageHeader
+        actions={
+          <LeaveRequestCreateForm
+            departments={departments.items}
+            employees={employees.items}
+            shifts={shifts.items}
+          />
+        }
         description="Review and manage employee leave requests."
         eyebrow="Time & Attendance"
         title="Leave Requests"
@@ -89,23 +117,37 @@ export default async function LeaveRequestsPage({
                 <th>Days</th>
                 <th>Status</th>
                 <th>Requested At</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {leaveRequests.items.map((request) => (
                 <tr key={request.id}>
                   <td>
-                    <Link className="table-link" href={`/leave-requests/${request.id}`}>
+                    <Link
+                      className="table-link"
+                      href={`/leave-requests/${request.id}`}
+                    >
                       {request.employee?.name ?? request.employeeId}
                     </Link>
                   </td>
-                  <td>{request.startDate} to {request.endDate}</td>
+                  <td>
+                    {request.startDate} to {request.endDate}
+                  </td>
                   <td>{request.days?.length ?? '-'}</td>
                   <td>
-                    <StatusBadge active={request.status === 'approved'} />
-                    <span style={{ marginLeft: '8px' }}>{request.status}</span>
+                    <StatusBadge active={statusIsActive(request.status)}>
+                      {formatStatus(request.status)}
+                    </StatusBadge>
                   </td>
                   <td>{formatDate(request.createdAt)}</td>
+                  <td>
+                    <LeaveActionButtons
+                      id={request.id}
+                      returnPath={returnPath}
+                      status={request.status}
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -113,9 +155,23 @@ export default async function LeaveRequestsPage({
         </div>
       )}
 
-      <Pagination basePath="/leave-requests" meta={leaveRequests.meta} query={query} />
+      <Pagination
+        basePath="/leave-requests"
+        meta={leaveRequests.meta}
+        query={query}
+      />
     </main>
   );
+}
+
+function statusIsActive(status: LeaveStatus): boolean | undefined {
+  if (status === 'approved') return true;
+  if (status === 'pending') return undefined;
+  return false;
+}
+
+function formatStatus(status: LeaveStatus): string {
+  return status.replace(/_/g, ' ');
 }
 
 function formatDate(value: string): string {

@@ -1519,6 +1519,101 @@ tr:last-child td {
   padding: 0 10px;
 }
 
+.holiday-action-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-top: 0;
+  border-radius: 0 0 8px 8px;
+  background: var(--background);
+}
+
+.holiday-actions .form-panel {
+  margin-bottom: 0;
+}
+
+.holiday-create-form,
+.holiday-import-form,
+.holiday-edit-form {
+  align-content: start;
+}
+
+.holiday-import-form input[type='file'] {
+  min-height: 42px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--input);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--secondary-foreground);
+}
+
+.holiday-filter {
+  grid-template-columns:
+    minmax(180px, 1.4fr)
+    minmax(110px, 0.55fr)
+    minmax(130px, 0.7fr)
+    minmax(140px, 0.75fr)
+    minmax(130px, 0.7fr)
+    auto;
+}
+
+.holiday-table table {
+  min-width: 980px;
+}
+
+.holiday-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.holiday-edit-panel {
+  min-width: min(100%, 300px);
+}
+
+.holiday-edit-panel>summary {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--secondary-foreground);
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+.holiday-edit-panel>summary::-webkit-details-marker {
+  display: none;
+}
+
+.holiday-edit-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+}
+
+.holiday-edit-form .primary-button,
+.holiday-delete-form .danger-button {
+  min-height: 34px;
+  padding: 0 10px;
+}
+
+.holiday-delete-form {
+  margin: 0;
+}
+
 .geofence-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
@@ -1865,6 +1960,7 @@ tr:last-child td {
   .attendance-detail-audit-grid,
   .form-grid,
   .action-grid,
+  .holiday-action-grid,
   .employee-face-import-panel,
   .employee-face-upload-form,
   .employee-detail-layout {
@@ -1929,6 +2025,7 @@ tr:last-child td {
   .geofence-layout,
   .form-grid,
   .filter-bar,
+  .holiday-action-grid,
   .employee-face-import-panel,
   .employee-face-upload-form,
   .employee-face-filter,

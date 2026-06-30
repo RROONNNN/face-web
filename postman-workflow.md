@@ -160,10 +160,10 @@ curl --location '{{base_url}}/attendance?employeeId={{EMPLOYEE_ID}}&date=2026-06
 
 ---
 
-### 9. Offline Sync Check In
-Used by mobile apps to upload cached check-ins when back online. Note this expects an array.
+### 9. Offline Sync Check In/Out
+Used by mobile apps to upload cached check-ins and check-outs when back online. Note this expects an array.
 ```bash
-curl --location '{{base_url}}/attendance/sync/check-in' \
+curl --location '{{base_url}}/attendance/sync/check-in-out' \
 --header 'Content-Type: application/json' \
 --header 'Authorization: Bearer {{accessToken}}' \
 --data '[
@@ -172,32 +172,22 @@ curl --location '{{base_url}}/attendance/sync/check-in' \
       "localId": "local-uuid-or-timestamp-1",
       "occurredAt": "2026-06-23T08:00:00+07:00",
       "source": "mobile_face_recognition",
-      "faceSimilarity": 98.5
-  }
-]'
-```
-
----
-
-### 10. Offline Sync Check Out
-Used by mobile apps to upload cached check-outs.
-```bash
-curl --location '{{base_url}}/attendance/sync/check-out' \
---header 'Content-Type: application/json' \
---header 'Authorization: Bearer {{accessToken}}' \
---data '[
+      "faceSimilarity": 98.5,
+      "isCheckIn": true
+  },
   {
       "employeeId": "{{EMPLOYEE_ID}}",
       "localId": "local-uuid-or-timestamp-2",
       "occurredAt": "2026-06-23T17:00:00+07:00",
-      "source": "mobile_face_recognition"
+      "source": "mobile_face_recognition",
+      "isCheckIn": false
   }
 ]'
 ```
 
 ---
 
-### 11. Admin Manual Check In
+### 10. Admin Manual Check In
 Allows an admin to manually insert a check-in for an employee on a specific `workDate`.
 ```bash
 curl --location '{{base_url}}/attendance/manual/check-in' \
@@ -213,7 +203,7 @@ curl --location '{{base_url}}/attendance/manual/check-in' \
 
 ---
 
-### 12. Admin Manual Check Out
+### 11. Admin Manual Check Out
 Allows an admin to manually insert a check-out for an employee on a specific `workDate`.
 ```bash
 curl --location '{{base_url}}/attendance/manual/check-out' \
@@ -229,7 +219,7 @@ curl --location '{{base_url}}/attendance/manual/check-out' \
 
 ---
 
-### 13. Finalize End Of Day
+### 12. Finalize End Of Day
 Admin triggers this to compute total hours for all records on a specific date.
 ```bash
 curl --location '{{base_url}}/attendance/admin/finalize-day' \
@@ -257,7 +247,7 @@ curl --location '{{base_url}}/attendance/admin/dashboard?workDate=2026-06-23' \
 
 ---
 
-### 14. List Holidays
+### 13. List Holidays
 Fetches a paginated list of holidays. You can filter by `year` and `search`.
 ```bash
 curl --location '{{base_url}}/holidays?page=1&limit=20&year=2026' \
@@ -273,7 +263,7 @@ curl --location '{{base_url}}/holidays/by-month?dateInMonth=2026-04-01' \
 
 ---
 
-### 15. Create Holiday
+### 14. Create Holiday
 Admin creates a single holiday entry.
 ```bash
 curl --location '{{base_url}}/holidays' \
@@ -289,7 +279,7 @@ curl --location '{{base_url}}/holidays' \
 
 ---
 
-### 16. Update Holiday
+### 15. Update Holiday
 Updates an existing holiday by its UUID.
 ```bash
 curl --location --request PATCH '{{base_url}}/holidays/<holiday-uuid>' \
@@ -301,7 +291,7 @@ curl --location --request PATCH '{{base_url}}/holidays/<holiday-uuid>' \
 ```
 ---
 
-### 17. Delete Holiday
+### 16. Delete Holiday
 Deletes a holiday by its UUID.
 ```bash
 curl --location --request DELETE '{{base_url}}/holidays/<holiday-uuid>' \
@@ -310,7 +300,7 @@ curl --location --request DELETE '{{base_url}}/holidays/<holiday-uuid>' \
 
 ---
 
-### 18. Import Holidays (Excel)
+### 17. Import Holidays (Excel)
 Uploads an `.xlsx` file to bulk insert or update holidays. In Postman, switch this to `form-data` and select your file for the `file` key.
 ```bash
 curl --location '{{base_url}}/holidays/import' \
@@ -333,7 +323,7 @@ curl --location '{{base_url}}/attendance/query-by-employee?employeeId={{EMPLOYEE
 
 Leave dates must be today or later. Partial leave also requires an existing shift assignment for that date, and `WORK_PERIOD_ID` must belong to the assigned shift. Use separate pending requests for approve, reject, and cancel because each transition is terminal.
 
-### 19. Login as Employee
+### 18. Login as Employee
 
 Use the employee code returned by the registration workflow. Store the returned `data.accessToken` as `{{employeeAccessToken}}`.
 
@@ -346,7 +336,7 @@ curl --location '{{base_url}}/auth/login' \
 }'
 ```
 
-### 20. Create Leave Request
+### 19. Create Leave Request
 
 This example requests full-day leave on July 1 and partial leave on July 2. Dates without a `partialDays` entry are treated as full-day leave. Store the returned `data.id` as `{{LEAVE_ID}}`.
 
@@ -380,7 +370,7 @@ curl --location '{{base_url}}/leave' \
 }'
 ```
 
-### 21. Find My Leave Requests
+### 20. Find My Leave Requests
 
 Employee-only endpoint. Supported filters are `status`, `fromDate`, `toDate`, `page`, and `limit`.
 
@@ -389,7 +379,7 @@ curl --location '{{base_url}}/leave/me?status=pending&fromDate=2026-07-01&toDate
 --header 'Authorization: Bearer {{employeeAccessToken}}'
 ```
 
-### 22. Find All Leave Requests
+### 21. Find All Leave Requests
 
 Admin-only endpoint. It supports `employeeId` in addition to the employee-list filters.
 
@@ -398,7 +388,7 @@ curl --location '{{base_url}}/leave?employeeId={{EMPLOYEE_ID}}&status=pending&fr
 --header 'Authorization: Bearer {{accessToken}}'
 ```
 
-### 23. Find Leave Request by ID
+### 22. Find Leave Request by ID
 
 Admins can retrieve any request. Employees can retrieve only their own request.
 
@@ -407,7 +397,7 @@ curl --location '{{base_url}}/leave/{{LEAVE_ID}}' \
 --header 'Authorization: Bearer {{employeeAccessToken}}'
 ```
 
-### 24. Approve Leave Request
+### 23. Approve Leave Request
 
 Admin-only. Approval is allowed only while the request is pending and no attendance events exist on an affected assigned date.
 
@@ -416,7 +406,7 @@ curl --location --request PUT '{{base_url}}/leave/{{LEAVE_ID}}/approve' \
 --header 'Authorization: Bearer {{accessToken}}'
 ```
 
-### 25. Create a Request for Rejection
+### 24. Create a Request for Rejection
 
 Create another pending request and store its returned `data.id` as `{{REJECT_LEAVE_ID}}`.
 
@@ -431,7 +421,7 @@ curl --location '{{base_url}}/leave' \
 }'
 ```
 
-### 26. Reject Leave Request
+### 25. Reject Leave Request
 
 Admin-only. A non-empty rejection reason is required.
 
@@ -444,7 +434,7 @@ curl --location --request PUT '{{base_url}}/leave/{{REJECT_LEAVE_ID}}/reject' \
 }'
 ```
 
-### 27. Create a Request for Cancellation
+### 26. Create a Request for Cancellation
 
 Create a third pending request and store its returned `data.id` as `{{CANCEL_LEAVE_ID}}`.
 
@@ -459,7 +449,7 @@ curl --location '{{base_url}}/leave' \
 }'
 ```
 
-### 28. Cancel My Leave Request
+### 27. Cancel My Leave Request
 
 Employee-only. Employees can cancel only their own pending requests.
 

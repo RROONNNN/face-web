@@ -152,12 +152,11 @@ radiusMeters Number
 ### Attendance - Sync (from offline mobile data)
 | Method | Path | Body | Auth | Output |
 |--------|------|------|------|--------|
-| POST | `/attendance/sync/checkIn` | `[SyncCheckInRequest]` | JWT | `[localId]` - failed item IDs |
-| POST | `/attendance/sync/checkOut` | `[SyncCheckOutRequest]` | JWT | `[localId]` - failed item IDs |
+| POST | `/attendance/sync/check-in-out` | `[SyncCheckInOutRequest]` | JWT | `[localId]` - failed item IDs |
 
 ```ts
-// SyncCheckInRequest / SyncCheckOutRequest object
-{ empId: string, time: ISO8601, lat: number, lon: number, localId: string, imagePath?: string }
+// SyncCheckInOutRequest object
+{ empId: string, time: ISO8601, lat: number, lon: number, localId: string, isCheckIn: boolean, imagePath?: string }
 ```
 
 > `localId` is only used by the client to correlate errors within the current sync request. The backend does not store `localId` in `CheckIn` / `CheckOut`, and `localId` does not need to be globally unique.

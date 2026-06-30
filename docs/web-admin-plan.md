@@ -170,8 +170,7 @@ Controller-level auth: Bearer token required. Role varies by route.
 | --- | --- | --- | --- | --- |
 | `POST` | `/api/attendance/check-in` | employee, admin | `{ employeeId, occurredAt, source, faceSimilarity?, latitude?, longitude?, deviceId? }` | Check in |
 | `POST` | `/api/attendance/check-out` | employee, admin | same as check-in | Check out |
-| `POST` | `/api/attendance/sync/check-in` | employee, admin | array of sync check-in events with `localId` | Offline check-in sync |
-| `POST` | `/api/attendance/sync/check-out` | employee, admin | array of sync check-out events with `localId` | Offline check-out sync |
+| `POST` | `/api/attendance/sync/check-in-out` | employee, admin | array of sync events with `localId` and `isCheckIn` | Offline check-in/check-out sync |
 | `POST` | `/api/attendance/manual/check-in` | admin | `{ employeeId, workDate, occurredAt, faceSimilarity?, latitude?, longitude?, note? }` | Admin manual check-in |
 | `POST` | `/api/attendance/manual/check-out` | admin | `{ employeeId, workDate, occurredAt, latitude?, longitude?, note? }` | Admin manual check-out |
 | `GET` | `/api/attendance` | admin | `employeeId?`, `date?`, `status?`, `page`, `limit` | Paginated attendance records |

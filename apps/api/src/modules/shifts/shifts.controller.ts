@@ -30,6 +30,13 @@ export class ShiftsController {
         return this.shiftsService.findAllShifts(query);
     }
 
+    @Get('department-default')
+    findDepartmentDefaultShift(
+        @Query('employeeId', ParseUUIDPipe) employeeId: string,
+    ) {
+        return this.shiftsService.findDepartmentDefaultShift(employeeId);
+    }
+
     @Post()
     create(@Body() createShiftDto: CreateShiftDto) {
         return this.shiftsService.createShift(createShiftDto);

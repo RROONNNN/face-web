@@ -44,4 +44,22 @@ describe('LeaveController', () => {
 
     expect(leaveService.create).toHaveBeenCalledWith(input, user);
   });
+
+  it('delegates admin creation with the requested employee id', async () => {
+    const user = {
+      id: 'admin',
+      employeeCode: 'ADMIN',
+      roles: [AccountRole.Admin],
+    };
+    const input = {
+      employeeId: 'employee',
+      startDate: '2099-01-01',
+      endDate: '2099-01-01',
+      reason: 'Admin-created leave',
+    };
+
+    await controller.create(input, { user } as never);
+
+    expect(leaveService.create).toHaveBeenCalledWith(input, user);
+  });
 });

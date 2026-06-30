@@ -17,6 +17,7 @@ import type {
   LeaveStatus,
   LeaveRequest,
   GeofenceConfig,
+  Holiday,
   EmployeeFace,
   EmployeeFacesResponse,
 } from '@/lib/api/types';
@@ -167,6 +168,21 @@ export function getLeaveRequest(id: string) {
 
 export function getGeofenceConfig() {
   return authenticatedApiFetch<GeofenceConfig | null>('/api/geofence');
+}
+
+export type HolidaysQuery = {
+  page?: number;
+  limit?: number;
+  search?: string;
+  year?: number;
+  sortBy?: 'date' | 'name' | 'createdAt';
+  sortOrder?: SortOrder;
+};
+
+export function getHolidays(query: HolidaysQuery = {}) {
+  return authenticatedApiFetch<PaginatedData<Holiday>>(
+    `/api/holidays${toQueryString(query)}`,
+  );
 }
 
 export type EmployeeFacesQuery = {

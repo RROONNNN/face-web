@@ -23,10 +23,10 @@ import { LeaveService } from './leave.service';
 @Controller('leave')
 @UseGuards(AuthGuard, RolesGuard)
 export class LeaveController {
-  constructor(private readonly leaveService: LeaveService) {}
+  constructor(private readonly leaveService: LeaveService) { }
 
   @Post()
-  @AccountRoles([AccountRole.Employee])
+  @AccountRoles([AccountRole.Admin, AccountRole.Employee])
   create(
     @Body() input: CreateLeaveRequestDto,
     @Req() request: AuthenticatedRequest,
@@ -35,7 +35,7 @@ export class LeaveController {
   }
 
   @Get('me')
-  @AccountRoles([AccountRole.Employee])
+  @AccountRoles([AccountRole.Employee, AccountRole.Admin])
   findMine(
     @Query() query: QueryLeaveRequestsDto,
     @Req() request: AuthenticatedRequest,
@@ -59,7 +59,7 @@ export class LeaveController {
   }
 
   @Put(':id/cancel')
-  @AccountRoles([AccountRole.Employee])
+  @AccountRoles([AccountRole.Admin, AccountRole.Employee])
   cancel(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: AuthenticatedRequest,
@@ -85,4 +85,5 @@ export class LeaveController {
   ) {
     return this.leaveService.reject(id, input, request.user!);
   }
+
 }

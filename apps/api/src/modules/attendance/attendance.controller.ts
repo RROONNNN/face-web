@@ -11,7 +11,7 @@ import { CheckOutDto } from './dto/check-out.dto';
 import { QueryAttendanceDashboardDto } from './dto/query-attendance-dashboard.dto';
 import { QueryAttendanceDto } from './dto/query-attendance.dto';
 import { QueryByEmployeeAttendanceDto } from './dto/query-by-employee-attendance.dto';
-import { SyncCheckInDto, SyncCheckOutDto } from './dto/sync-event.dto';
+import { SyncCheckInOutDto } from './dto/sync-event.dto';
 
 @Controller('attendance')
 @UseGuards(AuthGuard, RolesGuard)
@@ -30,16 +30,10 @@ export class AttendanceController {
         return this.attendanceService.checkOut(dto);
     }
 
-    @Post('sync/check-in')
+    @Post('sync/check-in-out')
     @AccountRoles([AccountRole.Employee, AccountRole.Admin])
-    syncCheckIn(@Body() events: SyncCheckInDto[]) {
-        return this.attendanceService.syncCheckIn(events);
-    }
-
-    @Post('sync/check-out')
-    @AccountRoles([AccountRole.Employee, AccountRole.Admin])
-    syncCheckOut(@Body() events: SyncCheckOutDto[]) {
-        return this.attendanceService.syncCheckOut(events);
+    syncCheckInOut(@Body() events: SyncCheckInOutDto[]) {
+        return this.attendanceService.syncCheckInOut(events);
     }
 
     @Post('manual/check-in')

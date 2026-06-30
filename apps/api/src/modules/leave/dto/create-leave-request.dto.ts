@@ -26,6 +26,10 @@ export class PartialLeaveDayDto {
 }
 
 export class CreateLeaveRequestDto {
+  @IsOptional()
+  @IsUUID()
+  employeeId?: string;
+
   @IsDateString({ strict: true })
   @Matches(DATE_ONLY_PATTERN)
   startDate!: string;
@@ -46,6 +50,4 @@ export class CreateLeaveRequestDto {
   @ValidateNested({ each: true })
   @Type(() => PartialLeaveDayDto)
   partialDays?: PartialLeaveDayDto[];
-  @IsUUID()
-  departmentShiftId!: string;
 }

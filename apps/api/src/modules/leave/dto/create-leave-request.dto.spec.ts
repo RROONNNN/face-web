@@ -20,6 +20,19 @@ describe('CreateLeaveRequestDto', () => {
     await expect(validate(dto)).resolves.toHaveLength(0);
   });
 
+  it('rejects client-provided departmentShiftId', async () => {
+    const dto = plainToInstance(CreateLeaveRequestDto, {
+      startDate: '2099-01-01',
+      endDate: '2099-01-01',
+      reason: 'Family appointment',
+      departmentShiftId: '22222222-2222-4222-8222-222222222222',
+    });
+
+    expect(
+      await validate(dto, { whitelist: true, forbidNonWhitelisted: true }),
+    ).not.toHaveLength(0);
+  });
+
   it('rejects timestamp dates, blank reasons, and invalid period IDs', async () => {
     const dto = plainToInstance(CreateLeaveRequestDto, {
       startDate: '2099-01-01T00:00:00.000Z',

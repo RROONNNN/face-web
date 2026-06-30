@@ -9,6 +9,7 @@ import { DataSource, Repository } from 'typeorm';
 import { PaginatedResponse } from '../../common/interfaces/paginated-response.interface';
 import { TimeUtil } from '../../common/utils/time.util';
 import { AttendanceRecord } from '../attendance/entities/attendance-record.entity';
+import { Department } from '../departments/entities/department.entity';
 import { LeaveReconciliationService } from '../leave/leave-reconciliation.service';
 import { User } from '../users/entities/user.entity';
 import { CreateShiftDto } from './dto/create-shift.dto';
@@ -35,10 +36,51 @@ export class ShiftsService {
         private readonly attendanceRecordRepository: Repository<AttendanceRecord>,
         @InjectRepository(User)
         private readonly userRepository: Repository<User>,
+        @InjectRepository(Department)
+        private readonly departmentRepository: Repository<Department>,
         private readonly dataSource: DataSource,
         private readonly leaveReconciliationService: LeaveReconciliationService,
     ) {
     }
+
+    async findDepartmentDefaultShift(employeeId: string): Promise<Shift> {
+        const employee = await this.userRepository.findOne({
+            where: { id: employeeId, isActive: true },
+            select: { id: true, departmentId: true },
+        });
+        if (!employee) {
+            throw new NotFoundException(`Employee with id "${employeeId}" not found.`);
+        }
+        if (!employee.departmentId) {
+            throw new BadRequestException(
+                `Employee with id "${employeeId}" has no department assigned.`,
+            );
+        }
+
+        const department = await this.departmentRepository.findOne({
+            where: { id: employee.departmentId, isActive: true },
+            select: { id: true, defaultShiftId: true },
+        });
+        if (!department?.defaultShiftId) {
+            throw new BadRequestException(
+                `Employee with id "${employeeId}" has no active department default shift.`,
+            );
+        }
+
+        const shift = await this.shiftRepository.findOne({
+            where: { id: department.defaultShiftId },
+            relations: { workPeriods: true },
+            order: { workPeriods: { startTime: 'ASC' } },
+        });
+        if (!shift) {
+            throw new NotFoundException(
+                `Shift with id "${department.defaultShiftId}" not found.`,
+            );
+        }
+
+        return shift;
+    }
+
     async findAllShifts(query: QueryShiftsDto): Promise<PaginatedResponse<Shift>> {
         const {
             search,

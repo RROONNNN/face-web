@@ -303,6 +303,13 @@ export type Holiday = {
   updatedAt: string;
 };
 
+export type HolidayImportSummary = {
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: string[];
+};
+
 export type EmployeeAttendanceSummary = {
   presentCount: number;
   leaveCount: number;
@@ -317,14 +324,22 @@ export type EmployeeAttendanceData = {
 };
 
 export type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+export type LeaveDayScope = 'full_day' | 'work_periods';
+
+export type LeavePeriodSnapshot = {
+  workPeriodId: string;
+  name: string;
+  startTime: string;
+  endTime: string;
+  isCrossMidnight: boolean;
+};
 
 export type LeaveRequestDay = {
   id: string;
-  leaveRequestId: string;
-  date: string;
-  isPartialDay: boolean;
-  departmentShiftId: string;
-  shiftWorkPeriodId?: string | null;
+  workDate: string;
+  scope: LeaveDayScope;
+  shiftAssignmentId?: string | null;
+  requestedPeriods: LeavePeriodSnapshot[];
 };
 
 export type LeaveRequest = {
